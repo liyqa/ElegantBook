@@ -1,0 +1,70 @@
+% !TeX program = xelatex
+% !TeX encoding = UTF-8
+% !BIB program  = biber
+% ============================================================================
+%  main.tex —— ElegantBook 中文使用手册
+%
+%  推荐编译流程（XeLaTeX 引擎）:
+%     xelatex main.tex     第一次编译
+%     biber   main         生成参考文献
+%     xelatex main.tex     第二次编译
+%     xelatex main.tex     第三次编译（解析交叉引用与目录）
+%
+%  本手册的约定:
+%   * 中文排版完全交由 elegantbook 文档类（lang=cn）内部完成，
+%     本源码不显式加载 ctex 宏包，也不使用 ctexbook/ctexart 文档类；
+%   * elegantbook.cls 已复制到本目录，项目自包含，不依赖发行版中的安装；
+%   * 全部章节按"一章一文件"组织于 chapters/ 目录，
+%     参考文献统一放在 refs.bib，由 biblatex + biber 管理。
+% ============================================================================
+
+\documentclass[11pt,a4paper,lang=cn,device=normal,mode=fancy,color=blue]{elegantbook}
+
+% ------------------------- 封面与标题信息 -------------------------
+\title{ElegantBook 中文使用手册}
+\subtitle{功能概述 · 快速入门 · 数学原理 · 算法实现}
+\author{AtomGit 文档项目}
+\institute{ElegantLaTeX 用户社区}
+\date{2026 年 8 月}
+\version{4.6}
+\extrainfo{基于 ElegantBook v4.6 \quad 引擎：XeLaTeX}
+% \logo{figures/logo.pdf}     % 可选：封面左上角校徽/logo
+% \cover{figures/cover.pdf}   % 可选：整页封面背景图
+
+% ------------------------- 参考文献 -------------------------
+\addbibresource{refs.bib}
+
+% ------------------------- 附加宏包 -------------------------
+\usepackage{algorithm}      % 算法浮动体
+\usepackage{algpseudocode}  % 伪代码排版
+
+% ------------------------- PDF 元数据 -------------------------
+\hypersetup{
+  pdftitle    = {ElegantBook 中文使用手册},
+  pdfauthor   = {AtomGit 文档项目},
+  pdfsubject  = {ElegantBook 文档类：功能、用法、数学原理与算法实现},
+  pdfkeywords = {ElegantBook, LaTeX, 中文排版, 文档类, XeLaTeX},
+}
+
+\begin{document}
+
+\maketitle
+
+\frontmatter
+\tableofcontents
+
+\mainmatter
+
+\include{chapters/ch01_overview}      % 第一章  功能与模块划分
+\include{chapters/ch02_quickstart}    % 第二章  快速入门
+\include{chapters/ch03_typesetting}   % 第三章  排版与版面：数学原理
+\include{chapters/ch04_theorems}      % 第四章  定理环境：设计与算法
+\include{chapters/ch05_compilation}   % 第五章  编译管线：内部自动化
+\include{chapters/ch06_customize}     % 第六章  进阶定制
+
+\appendix
+\include{chapters/chA_options}        % 附录A  文档类选项速查
+
+\printbibliography[heading=bibintoc, title={参考文献}]
+
+\end{document}

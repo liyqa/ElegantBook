@@ -1,0 +1,452 @@
+% ============================================================================
+%  第三章  排版与版面：数学原理
+% ============================================================================
+
+\chapter{排版与版面：数学原理}
+
+从本章开始，我们深入 ElegantBook 乃至整个 \TeX 体系的内部，
+用数学的语言解释版面设计、字号行距、颜色系统与断行算法背后的原理。
+掌握了这些，读者不仅能理解模板为何这样设计，还能在定制时做出有理有据的选择。
+
+\section{纸张尺寸的数学}
+
+ElegantBook 默认采用 A4 纸张（\texttt{a4paper}）。A 系列纸张的设计
+本身就是数学的产物：它的核心要求是\emph{对折后长宽比不变}，且 A0 的
+面积恰好为 $1\,\mathrm{m}^2$。
+
+设纸张宽为 $w$、高为 $h$，且 $h>w$。对折（沿长边中点连线折叠）后，
+新纸张的宽为 $h/2$、高为 $w$。要求长宽比不变，即
+\begin{equation}
+  \frac{h}{w} = \frac{w}{h/2}
+  \;\Longrightarrow\;
+  h^2 = 2w^2
+  \;\Longrightarrow\;
+  \frac{h}{w} = \sqrt{2}.
+  \label{eq:paper}
+\end{equation}
+
+再结合面积约束 $wh = 1\,\mathrm{m}^2$（A0 的定义），解得
+\begin{equation}
+  w = 2^{-1/4}\,\mathrm{m} \approx 0.841\,\mathrm{m},\qquad
+  h = 2^{1/4}\,\mathrm{m} \approx 1.189\,\mathrm{m},
+\end{equation}
+这正是 A0 的尺寸。对 A$n$ 而言，它是 A0 对折 $n$ 次的结果，因此
+\begin{equation}
+  w_n = 2^{-\frac{1}{4}-\frac{n}{2}}\,\mathrm{m},\qquad
+  h_n = 2^{\frac{1}{4}-\frac{n}{2}}\,\mathrm{m}.
+  \label{eq:aseries}
+\end{equation}
+代入 $n=4$ 得 A4 的标称尺寸 $210\,\mathrm{mm}\times 297\,\mathrm{mm}$
+（工程取整后的值），与模板中的 \texttt{a4paper} 一致。
+
+\begin{remark}
+公式 \eqref{eq:paper} 说明 $\sqrt{2}$ 是 A 系列唯一的"自相似"长宽比，
+这也是"缩印（例如 A4 缩印到 A5）后版式比例不变"的数学基础。
+\end{remark}
+
+\section{\TeX 的长度单位}
+
+版面计算离不开单位换算。\TeX\ 的基本长度单位是 pt（point），
+其定义为英寸的 $1/72.27$：
+\begin{equation}
+  1\,\mathrm{pt} = \frac{25.4}{72.27}\,\mathrm{mm}
+  \approx 0.35146\,\mathrm{mm},
+  \qquad
+  1\,\mathrm{mm} \approx 2.8453\,\mathrm{pt}.
+\end{equation}
+注意区分 pt 与 PostScript 的 bp（big point，$1/72$ 英寸）：
+\begin{equation}
+  1\,\mathrm{bp} = \frac{25.4}{72}\,\mathrm{mm} \approx 0.35278\,\mathrm{mm},
+\end{equation}
+两者相差约 $0.4\%$，在精确排版（如跨页图片对齐）时需要留意。
+ElegantBook 内部大量使用 \texttt{cm}、\texttt{mm} 与 \texttt{pt}
+混合标注，例如边距设置 \texttt{top=25.4mm}、页眉高度
+\texttt{headheight=2.17cm}。
+
+\section{版心的推导}
+
+版面由\emph{纸张}、\emph{页边距}与\emph{版心}（印刷区域）构成。
+ElegantBook 在 \texttt{device=normal} 下的 geometry 设置为：
+上、下边距 $25.4\,\mathrm{mm}$，左、右边距各 $20\,\mathrm{mm}$。
+于是版心尺寸为
+\begin{align}
+  W_{\mathrm{text}} &= W_{\mathrm{paper}} - m_L - m_R
+                      = 210 - 20 - 20 = 170\,\mathrm{mm},\\
+  H_{\mathrm{text}} &= H_{\mathrm{paper}} - m_T - m_B
+                      = 297 - 25.4 - 25.4 = 246.2\,\mathrm{mm}.
+  \label{eq:textbox}
+\end{align}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[x=0.55mm, y=0.55mm, font=\scriptsize]
+    % 纸张
+    \draw[fill=gray!10] (0,0) rectangle (210,297);
+    % 版心
+    \draw[fill=structurecolor!15, thick, structurecolor]
+      (20,25.4) rectangle (190,271.6);
+    % 边距标注
+    \draw[<->] (0,-6) -- (20,-6) node[midway, below] {$m_L=20$};
+    \draw[<->] (190,-6) -- (210,-6) node[midway, below] {$m_R=20$};
+    \draw[<->] (-8,25.4) -- (-8,0) node[midway, left, rotate=90] {$m_B=25.4$};
+    \draw[<->] (-8,271.6) -- (-8,297) node[midway, left, rotate=90] {$m_T=25.4$};
+    % 版心尺寸
+    \node at (105,145) {\small 版心 $170\times246.2\,\mathrm{mm}$};
+  \end{tikzpicture}
+  \caption{ElegantBook 的页面几何（单位 mm）}\label{fig:pagegeo}
+\end{figure}
+
+如图~\figref{fig:pagegeo} 所示，版心宽度仅占纸宽约 $81\%$。
+版心宽高比为
+\begin{equation}
+  \frac{H_{\mathrm{text}}}{W_{\mathrm{text}}}
+  = \frac{246.2}{170} \approx 1.448,
+\end{equation}
+非常接近 $\sqrt{2}\approx1.414$ 与黄金比 $\varphi\approx1.618$ 之间，
+这是书籍版心设计的常见区间：既避免版面过于方正，又避免高宽比过大
+导致阅读疲劳。
+
+\section{字号、行距与每页行数}
+
+LaTeX 中"字号"指字体尺寸 $s$，行与行之间的基线距离
+\verb|\baselineskip| 由文档类设定。标准 \texttt{book} 类 12pt 字号
+的基线间距为 $14.5\,\mathrm{pt}$，即行距系数 $\gamma = 14.5/12\approx1.21$。
+ElegantBook 加载了 \texttt{setspace} 并采用
+\verb|\onehalfspacing|，使行距约为字号的 $1.5$ 倍，以适应中文
+阅读习惯并容纳上下标与数学符号。
+
+\begin{remark}
+设字号为 $s$，行距系数为 $\gamma$，则每页最多容纳的行数为
+\begin{equation}
+  N = \left\lfloor \frac{H_{\mathrm{text}} - 2\delta}{\gamma s} \right\rfloor,
+  \label{eq:lines}
+\end{equation}
+其中 $\delta$ 为页眉/页脚区域的补偿量。以 12pt 字号、$\gamma=1.5$
+计，每行占用约 $18\,\mathrm{pt}\approx6.33\,\mathrm{mm}$，
+版心高 $246.2\,\mathrm{mm}$，约可排 $39$ 行。字号、边距与行距
+三者共同决定了页数——这是估算书稿页数的核心公式。
+\end{remark}
+
+同理，每行可容纳的中文字符数近似为
+\begin{equation}
+  C \approx \left\lfloor \frac{W_{\mathrm{text}}}{s_{\mathrm{cjk}}} \right\rfloor,
+  \label{eq:chars}
+\end{equation}
+其中 $s_{\mathrm{cjk}}$ 为汉字字号（方块字宽度约等于字号）。
+按 12pt 计，每行约 $48$ 个汉字——这解释了为何中文书籍
+"每行字数×每页行数"常被用于版式审核。
+
+\section{黄金分割与版式比例}
+
+黄金比 $\varphi$ 是满足"整体与较大部分之比等于较大部分与较小部分之比"
+的正数。设线段长为 $1$，分割为 $x$ 与 $1-x$（$x>1-x$），要求
+\begin{equation}
+  \frac{1}{x} = \frac{x}{1-x}
+  \;\Longrightarrow\;
+  x^2 = 1-x
+  \;\Longrightarrow\;
+  x = \frac{\sqrt{5}-1}{2} \approx 0.618,
+  \qquad
+  \varphi = \frac{1}{x} = \frac{1+\sqrt{5}}{2} \approx 1.618.
+  \label{eq:golden}
+\end{equation}
+
+$\varphi$ 与 $\sqrt{2}$ 在版式中扮演重要角色：字号阶梯常按比例
+$\kappa\approx1.2$（十二平均律的几何近似）递进，即
+\begin{equation}
+  s_k = s_0\, \kappa^{k}, \qquad \kappa = \sqrt[6]{2}\approx1.1225
+  \;\text{或}\; \kappa=1.2,
+  \label{eq:fontscale}
+\end{equation}
+使 $12\to14.4\to17.28\to20.74\to\cdots$ 构成和谐的标题字号序列；
+页边距则常采用 $2:3:4:6$ 或 $1:\sqrt{2}$ 的比例
+（内小外大、上天头小下地脚大），使版心视觉重心偏上。
+ElegantBook 的边距设置（左右 $20\,\mathrm{mm}$、上下 $25.4\,\mathrm{mm}$）
+即体现了"上下大于左右"的经典比例。
+
+\section{颜色的数学}
+
+\subsection{RGB 与十六进制}
+
+ElegantBook 的主题色用 \texttt{xcolor} 的 RGB 模型定义，例如蓝色主题：
+\begin{equation*}
+  \texttt{structurecolor} = \mathrm{RGB}(60,113,183),
+  \qquad
+  \texttt{main} = \mathrm{RGB}(0,166,82),
+  \qquad
+  \texttt{second} = \mathrm{RGB}(255,134,24).
+\end{equation*}
+RGB 每个分量 $c\in[0,255]$ 与十六进制表示 $HH$ 之间满足
+\begin{equation}
+  HH = \lfloor c \rfloor_{16} \;\text{（两位数，不足补零）},
+\end{equation}
+例如 $(60,113,183)\mapsto \texttt{3C71B7}$。
+
+\subsection{亮度与感知均匀}
+
+人眼对红、绿、蓝的敏感度不同，感知亮度（luma）按 Rec.~709 加权：
+\begin{equation}
+  Y = 0.2126\,R' + 0.7152\,G' + 0.0722\,B',
+  \label{eq:luma}
+\end{equation}
+其中 $R',G',B'\in[0,1]$ 是归一化分量。这解释了为什么"看起来更亮"的
+颜色并不一定是数值更大的颜色。在浅色背景上选用深色文字、在主题色上
+叠加白色文字时，需保证 $Y$ 与背景形成足够对比（对比度 $C$ 定义为
+\begin{equation}
+  C = \frac{Y_{\max}+0.05}{Y_{\min}+0.05} \gtrsim 4.5,
+  \label{eq:contrast}
+\end{equation}
+即 WCAG 的 AA 级要求），ElegantBook 的定理盒子采用"浅色填充
+（主题色 $\times 5\%$）+ 主题色边框"正是为了兼顾对比度与美观。
+
+\subsection{sRGB 到 CMYK 的近似转换}
+
+印刷时需要将 RGB 转换为 CMYK。设归一化分量 $R,G,B\in[0,1]$，
+先做（简化的）线性化，再按下式转换：
+\begin{align}
+  K &= 1 - \max\{R,G,B\},\\
+  C &= \frac{1-R-K}{1-K},\quad
+  M = \frac{1-G-K}{1-K},\quad
+  Y_c = \frac{1-B-K}{1-K},
+  \label{eq:cmyk}
+\end{align}
+其中 $K=0$ 时取极限 $C=M=Y_c=0$。该映射保证 $K$ 通道承担灰色
+成分，彩色墨水只补充色偏，从而节省油墨并避免套色误差。
+
+\section{断行的数学：Knuth--Plass 算法}
+
+\TeX\ 的段落断行不是"从左往右贪心填满"，而是全局最优的
+Knuth--Plass 算法：把一行的\emph{坏度}（badness）定义为
+\begin{equation}
+  b = 100 \left(\frac{r}{\Delta}\right)^{3}
+  \qquad
+  r = \begin{cases} \dfrac{L - \ell}{\ell}, & \text{行未满},\\[6pt]
+                      0, & \text{恰好填满},\end{cases}
+  \label{eq:badness}
+\end{equation}
+其中 $L$ 为该行自然宽度，$\ell$ 为版心行宽，$\Delta$ 为允许的伸缩
+上限。坏度越大说明该行越"难看"。段落的整体代价定义为各行坏度
+$p_i$ 之和加上断点惩罚项 $q$：
+\begin{equation}
+  \mathcal{C} = \sum_{i=1}^{m} p_i + \sum_{\text{断点}} q_i.
+  \label{eq:cost}
+\end{equation}
+Knuth--Plass 用\textbf{动态规划}求 $\mathcal{C}$ 的最小值：设
+$\operatorname{opt}(j)$ 为排版前 $j$ 个单词的最小代价，则
+\begin{equation}
+  \operatorname{opt}(j) = \min_{0\leqslant i<j}
+  \bigl\{\operatorname{opt}(i) + \operatorname{badness}(i+1,\,j)\bigr\},
+  \qquad
+  \operatorname{opt}(0)=0.
+  \label{eq:dp}
+\end{equation}
+该递推与最短路径问题同构，可在 $O(n^2)$ 内完成（实际实现结合
+"不可能断点剪枝"接近线性）。中文排版中的"标点禁则"
+（句号、逗号不得出现在行首）正是通过为这些位置施加无穷惩罚
+$q_i\to\infty$ 实现的——ElegantBook 依赖的 ctex 即在其内部
+（结合 XeLaTeX 引擎的 \texttt{xeCJK} 机制）自动处理。
+相关算法细节见文献 \cite{knuth1984texbook,knuth1981breaking}。
+
+\section{A、B、C 三系列纸型}
+
+\eqref{eq:aseries} 只给出了 A 系列。完整体系还包括 B 系列与
+C 系列，三者关系如下：
+
+\begin{itemize}
+  \item \textbf{A 系列}：A0 面积 $1\,\mathrm{m}^2$（\eqref{eq:aseries}），
+        用于书刊正文；
+  \item \textbf{B 系列}：B0 的\emph{短边}为 $1\,\mathrm{m}$（面积
+        $\sqrt{2}\,\mathrm{m}^2$），因此 B$n$ 是 A$n$ 的几何放大：
+        \begin{equation}
+          w_n^{B} = \sqrt{2}\, w_n^{A}, \qquad
+          h_n^{B} = \sqrt{2}\, h_n^{A};
+          \label{eq:bseries}
+        \end{equation}
+  \item \textbf{C 系列}：C$n$ 是 A$n$ 与 B$n$ 的几何平均
+        （宽取 $w^C = \sqrt{w^A w^B}$），用于信封与文件夹，
+        恰好能装下同号 A 系列纸张。
+\end{itemize}
+
+\begin{remark}
+几何平均 $\sqrt{w^A w^B}$ 的妙处：B 系列能放下同号与低一号的
+A 系列，C 系列又能放下同号的 A 系列——这种"递推嵌套"关系
+完全由 $\sqrt{2}$ 比例保证，是国际标准 ISO~216 的数学骨架。
+\end{remark}
+
+\section{单位体系全表}
+
+\TeX 是"物理量精确"的系统，排版中可能遇到多种长度单位：
+
+\begin{table}[htbp]
+  \centering
+  \caption{\TeX 常用长度单位}\label{tab:units}
+  \begin{tabular}{lll}
+    \toprule
+    单位 & 定义 & 与 pt 的关系 \\
+    \midrule
+    pt & $1/72.27$ 英寸 & 1 \\
+    bp & $1/72$ 英寸（PostScript） & $72.27/72 \approx 1.00375$ \\
+    dd & $1/72$ 法国英寸（Didot） & $1238/1157 \approx 1.07001$ \\
+    cc & 12 dd（Cicero） & $1238/1157 \times 12 \approx 12.8401$ \\
+    sp & $1/65536$ pt（最小单位） & $1/65536$ \\
+    mm & $1/1000$ 米 & $72.27/25.4 \approx 2.8453$ \\
+    cm & $1/100$ 米 & $\approx 28.4527$ \\
+    in & $25.4$ mm & $\approx 72.27$ \\
+    em & 当前字体方块的宽度（\texttt{\textbackslash f@size}）& 随字号 \\
+    ex & 当前字体字母 x 的高度 & 约为 $0.4$--$0.5$ em \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+其中 \texttt{em} 是\textbf{相对单位}：12pt 字号下 $1\,\mathrm{em}=12$\,pt，
+它随字号自动缩放，因此"首行缩进 \texttt{2em}"的写法
+（中文排版惯例）在任何字号下都成立。\texttt{sp} 是内部最小
+单位，版面计算中的累计误差不会超过 $1/65536$\,pt。
+
+\section{传统中文字号与 pt 对照}
+
+中文书籍习惯用"初号、小四、五号"等称呼字号，其与 pt 的对照如下：
+
+\begin{table}[htbp]
+  \centering
+  \caption{传统中文字号与磅值对照}\label{tab:chinesefont}
+  \begin{tabular}{llllllll}
+    \toprule
+    名称 & 初号 & 一号 & 二号 & 三号 & 四号 & 小四 & 五号 \\
+    \midrule
+    磅值 (pt) & 42 & 28 & 21 & 16 & 14 & 12 & 10.5 \\
+    名称 & 小五 & 六号 & 小六 & 七号 & 八号 & & \\
+    \midrule
+    磅值 (pt) & 9 & 7.5 & 6.5 & 5.5 & 5 & & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+其中"五号 $=10.5$\,pt"是有来历的。若把传统字号理想化为
+几何阶梯：以一号字为基准 $s_0=28$\,pt，相邻字号之比取
+$\sqrt[8]{2}\approx1.0905$（每 8 号翻倍），则
+\begin{equation}
+  s_n = s_0 \times 2^{-n/8}\,\mathrm{pt},
+  \qquad
+  s_{9} \approx 12.8\,\mathrm{pt}\ (\text{近小四 }12\,\mathrm{pt}),\quad
+  s_{11} \approx 10.8\,\mathrm{pt}\ (\text{近五号 }10.5\,\mathrm{pt}),
+  \label{eq:cnfontsize}
+\end{equation}
+理想阶梯与表~\ref{tab:chinesefont} 的标准值大体吻合，细微差异
+源于各字号的历史沿革。小四（$12$\,pt）是中文排版最常用的正文
+字号；本手册正文采用 \texttt{11pt} 选项，比小四略小
+（由 \texttt{anyfontsize} 宏包保证任意字号可选）。
+
+\section{行距的机理}
+
+\verb|\baselineskip| 定义的是\emph{相邻两行基线之间的距离}。
+LaTeX 排版段落时，每一行是一个 \texttt{hbox}，行与行之间用
+\texttt{glue}（可伸缩胶水）连接：
+
+\begin{equation}
+  \Delta = \verb|\baselineskip| - h_{\mathrm{box}} - d_{\mathrm{box}},
+  \label{eq:glue}
+\end{equation}
+其中 $h_{\mathrm{box}}$、$d_{\mathrm{box}}$ 分别为行的上升部与
+下降部高度。当 $\Delta$ 为负（如行内含大号数学符号）时，LaTeX
+改用 \verb|\lineskip|，从而避免行与行重叠。
+
+ElegantBook 加载 \texttt{setspace} 后采用
+\verb|\onehalfspacing|，其内部实现并不是简单地把
+\verb|\baselineskip| 乘以 1.5，而是按\textbf{字号区间}分段放大：
+
+\begin{equation}
+  \verb|\baselineskip|' = f(s) \cdot s,
+  \qquad
+  f(s) = \begin{cases}
+    \alpha, & s \leqslant s_0,\\
+    \alpha + \beta \log(s/s_0), & s > s_0,
+  \end{cases}
+  \label{eq:setspace}
+\end{equation}
+其中 $\alpha\approx1.2$、$\beta$ 为补偿系数——这是为了在
+多字号混排（正文 12pt、脚注 10pt、标题 16pt）时保持视觉行距
+一致。这也是第三章开头 \eqref{eq:lines} 中 $\gamma$ 的来历。
+
+\section{基线网格}
+
+专业排版要求"行与行严格对齐到网格"，使左右页文字基线处于同一
+水平线。设每行基线距为 $B$，页首边距为 $t$，则第 $k$ 行的基线
+位置为
+\begin{equation}
+  y_k = t + k B - h_1, \qquad k=0,1,2,\dots
+  \label{eq:grid}
+\end{equation}
+只要页高 $H_{\mathrm{text}}$ 能被 $B$ 整除（即
+$H_{\mathrm{text}} \equiv 0 \pmod{B}$），网格即可闭合，
+最后一行的下降部恰好落在版心底边。LaTeX 默认不完全执行网格对齐
+（数学公式、图片会破坏行距），因此模板只保证"近似网格"；
+这是正文书籍排版中网格与流式排版之间的经典折衷。
+
+\section{黄金比与斐波那契数列}
+
+\eqref{eq:golden} 中的 $\varphi$ 还与斐波那契数列
+$F_0=0,F_1=1,F_{n+2}=F_{n+1}+F_n$ 紧密相连。设 $r_n =
+F_{n+1}/F_n$，则
+\begin{equation}
+  r_{n+1} = \frac{F_{n+2}}{F_{n+1}}
+  = \frac{F_{n+1}+F_n}{F_{n+1}}
+  = 1 + \frac{1}{r_n},
+\end{equation}
+这是连分数 $[1;1,1,1,\dots]$ 的迭代，其不动点 $r$ 满足
+$r=1+1/r$，即 $r^2-r-1=0$，解得 $r=\varphi$。因此
+\begin{equation}
+  \lim_{n\to\infty}\frac{F_{n+1}}{F_n} = \varphi,
+  \qquad
+  \varphi = 1 + \cfrac{1}{1+\cfrac{1}{1+\cfrac{1}{1+\cdots}}}.
+  \label{eq:continued}
+\end{equation}
+版式中"以相邻斐波那契数作字号/边距比例"（如 89:144 接近
+$\varphi$）正是这一极限的离散近似。
+
+\section{主题色全表}
+
+第一章提到五套主题色，其完整定义（取自
+\texttt{elegantbook.cls}）如下：
+
+\begin{table}[htbp]
+  \centering
+  \caption{五套主题色定义（RGB 与十六进制）}\label{tab:colors}
+  \begin{tabular}{lllll}
+    \toprule
+    主题 & \texttt{structurecolor} & \texttt{main} & \texttt{second} & \texttt{third} \\
+    \midrule
+    绿 green & (0,120,2) \texttt{\#007802} & (0,120,2) & (230,90,7) & (0,160,152) \\
+    青 cyan  & (31,186,190) \texttt{\#1FBABE} & (59,180,5) & (175,153,8) & (244,105,102) \\
+    蓝 blue  & (60,113,183) \texttt{\#3C71B7} & (0,166,82) & (255,134,24) & (0,174,247) \\
+    灰 gray  & (150,150,150) \texttt{\#969696} & (150,150,150) & (150,150,150) & (150,150,150) \\
+    黑 black & (0,0,0) \texttt{\#000000} & (0,0,0) & (0,0,0) & (0,0,0) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+三个功能色与盒子样式的对应关系（\eqref{eq:theme}）为：
+\texttt{main}（绿系）用于定义、例题；\texttt{second}（橙系）
+用于定理、引理、证明、注记；\texttt{third}（蓝系）用于命题、
+假设、结论。\texttt{structurecolor} 则统一控制标题、页眉、
+目录等结构性元素——修改它即可全局换肤（第六章）。
+
+\section{盒子模型：一切皆盒子}
+
+\TeX 排版的核心模型是"一切皆盒子"：字符是盒子，一行是水平盒
+（\texttt{hbox}），一页是垂直盒（\texttt{vbox}）。页面的构成
+可以写成
+\begin{equation}
+  \texttt{page} = \texttt{vbox}\bigl(
+    \texttt{head}, \underbrace{\texttt{glue}, \texttt{hbox}_1, \texttt{glue}, \texttt{hbox}_2, \dots}_{N\ \text{行}},
+    \texttt{foot} \bigr),
+  \label{eq:pagebox}
+\end{equation}
+其中行与行之间的 \texttt{glue} 即 \eqref{eq:glue} 的 $\Delta$。
+分页问题就是"如何把 $N$ 个 \texttt{hbox} 切成若干组，使每组高度
+不超过版心高"，它与断行问题（\eqref{eq:dp}）在数学上同构——
+同样可用动态规划求解，Knuth 把两者统一在
+\texttt{line breaking / page breaking} 框架下。理解这个盒子模型
+后，"为什么图片、表格会‘浮动’到别处"就有了答案：浮动体
+（figure/table）本质上是脱离主 \texttt{vbox} 的独立盒子，
+由浮动算法在版心空隙中安置。

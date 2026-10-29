@@ -1,0 +1,300 @@
+% ============================================================================
+%  第六章  进阶定制与扩展
+% ============================================================================
+
+\chapter{进阶定制与扩展}
+
+前几章介绍了模板的"开箱即用"与内部原理。本章给出进阶定制的常用
+手段：改颜色、换字体、调版式、改页眉页脚，以及加载第三方宏包
+的注意事项。
+
+\section{颜色定制}
+
+\subsection{切换主题色}
+
+主题色通过文档类选项 \texttt{color} 选择，五套预设的
+\texttt{structurecolor} 如图~\figref{fig:colors} 所示：
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[font=\small]
+    \definecolor{swgreen}{RGB}{0,120,2}
+    \definecolor{swcyan}{RGB}{31,186,190}
+    \definecolor{swblue}{RGB}{60,113,183}
+    \definecolor{swgray}{RGB}{150,150,150}
+    \definecolor{swblack}{RGB}{0,0,0}
+    \foreach \col/\name [count=\i] in {swgreen/绿 (green),
+                                       swcyan/青 (cyan),
+                                       swblue/蓝 (blue),
+                                       swgray/灰 (gray),
+                                       swblack/黑 (black)}{
+      \draw[fill=\col, draw=black!40]
+            ({0.15+(\i-1)*1.35},0) rectangle ({1.15+(\i-1)*1.35},1.2);
+      \node[align=center, font=\scriptsize] at ({0.65+(\i-1)*1.35},-0.35)
+            {\name};
+    }
+  \end{tikzpicture}
+  \caption{五套预设主题色}\label{fig:colors}
+\end{figure}
+
+\subsection{自定义颜色}
+
+若预设色不合意，可重新定义模板使用的颜色变量。文档类使用的核心
+颜色有 \texttt{structurecolor}（结构色）、\texttt{main}、
+\texttt{second}、\texttt{third}（三个模块色）。在导言区覆盖即可：
+
+\begin{lstlisting}
+\definecolor{structurecolor}{RGB}{90,60,180}   % 改为紫色系
+\definecolor{main}{RGB}{80,0,120}
+\definecolor{second}{RGB}{200,60,0}
+\definecolor{third}{RGB}{0,120,160}
+\end{lstlisting}
+
+由于定理盒子、页眉、标题、目录全部由这些变量着色，只需改动几行
+即可实现全局换肤。
+
+\begin{remark}
+也可以用 \texttt{xcolor} 的 \verb|\colorlet| 把主题色映射到
+其他已定义颜色，例如 \verb|\colorlet{main}{structurecolor}|，
+实现"主色跟随结构色"的联动。
+\end{remark}
+
+\section{字体定制}
+
+\subsection{中文字体}
+
+文档类提供 \texttt{chinesefont} 选项控制中文字体方案：
+\texttt{ctexfont}（默认，跟随 ctex 的字体配置）、
+\texttt{founder}（方正字体）、\texttt{nofont}（不设置，
+留给用户自行配置）。在 \texttt{nofont} 模式下，可以用
+\texttt{fontspec} 的 \verb|\setCJKmainfont| 等命令指定系统字体：
+
+\begin{lstlisting}
+\documentclass[lang=cn, chinesefont=nofont]{elegantbook}
+\setCJKmainfont{Source Han Serif SC}   % 思源宋体
+\setCJKsansfont{Source Han Sans SC}    % 思源黑体
+\setCJKmonofont{FangSong}              % 等宽/楷体
+\end{lstlisting}
+
+\subsection{西文与数学字体}
+
+西文字体由 \texttt{math} 选项间接影响：\texttt{cm}（默认，
+Computer Modern 风格）、\texttt{newtx}（Times 风格，正文与数学
+同步替换）、\texttt{mtpro2}（商业数学字体，需要已安装
+mtpro2 宏包）。数学字体切换对公式密集的书籍影响显著，
+建议统一后全局使用。
+
+\section{版式定制}
+
+\begin{description}
+  \item[\texttt{mode=simple}] 简约模式：定理类环境退化为
+        \texttt{amsthm} 经典样式（无彩色盒子），适合纯文字书籍；
+  \item[\texttt{device=pad}] 平板模式：纸张改为 $7.5\times10$ 英寸、
+        边距 $16\,\mathrm{mm}$，为触屏阅读优化；
+  \item[\texttt{titlestyle=display}] 通栏式章节标题
+        （默认 \texttt{hang} 为悬挂式）；
+  \item[\texttt{toc=twocol}] 目录双栏排版（默认 \texttt{onecol}）；
+  \item[\texttt{marginpar=margintrue}] 开启边注栏
+        （左 5\,cm 右 7\,cm 的版心偏移）；
+  \item[\texttt{result=noanswer}] 关闭习题答案环境
+        （默认 \texttt{answer}，显示答案）。
+\end{description}
+
+\section{页眉页脚定制}
+
+页眉页脚由 \texttt{fancyhdr} 实现。默认页眉在左/右页分别显示
+书名与章节名。若需自定义，直接使用 fancyhdr 的命令：
+
+\begin{lstlisting}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}      % 左页眉：当前章节
+\fancyhead[R]{\small\rightmark}     % 右页眉：当前小节
+\fancyfoot[C]{\small\thepage}       % 页脚居中页码
+\end{lstlisting}
+
+注意 \texttt{leftmark}/\texttt{rightmark} 是 LaTeX 自动维护的
+"当前章/节标题"标记宏，与 \verb|\chapter| 的 mark 机制联动。
+
+\section{加载第三方宏包}
+
+ElegantBook 不限制用户加载其他宏包（本手册即额外加载了
+\texttt{algorithm} 与 \texttt{algpseudocode}）。实践中的建议：
+
+\begin{itemize}
+  \item 先查阅本手册附录 A 确认选项覆盖范围，避免重复配置；
+  \item 宏包与文档类有交互时（如字体、几何、标题类），
+        注意加载顺序：用户的 \verb|\usepackage| 在文档类之后，
+        通常能覆盖模板默认；
+  \item 使用 \texttt{tcolorbox} 系宏包时，直接用
+        \texttt{\textbackslash tcbset} 追加样式即可，不要重新
+        \texttt{\textbackslash newtcolorbox} 定义同名环境。
+\end{itemize}
+
+\section{与 ctex 的关系（为什么不必显式加载）}
+
+如第一章所述，本手册全程不显式使用 ctex。原因在于：
+ElegantBook 在 \texttt{lang=cn} 时已在内部加载 ctex（并配置
+\verb|scheme=plain| 等选项），自动处理中文标点、缩进与字体。
+用户若再 \verb|\usepackage{ctex}|，既可能造成选项冲突，也容易
+因字体配置覆盖而出现警告。需要深度控制中文排版时，
+应优先使用文档类提供的 \texttt{chinesefont} 选项与
+\texttt{fontspec} 命令，而不是重复加载 ctex 宏包。
+
+\section{完整换肤示例}
+
+把前面几节的知识串起来：定义一个"紫罗兰"主题并应用到全文。
+
+\begin{lstlisting}
+% 导言区（documentclass 之后）
+\definecolor{structurecolor}{RGB}{90,60,180}   % 标题、页眉、目录
+\definecolor{main}{RGB}{80,0,120}              % 定义、例题盒子
+\definecolor{second}{RGB}{200,60,0}            % 定理、引理、证明
+\definecolor{third}{RGB}{0,120,160}            % 命题、假设、结论
+
+% 把页眉装饰线条也改为新结构色（可选）
+\renewcommand{\headrule}{\color{structurecolor}
+  \hrule width\headwidth height 0.6pt \vspace{1pt}}
+\end{lstlisting}
+
+由于模板内部所有着色都引用这四个颜色变量，上述几行即可让封面、
+标题、目录、定理盒子、页眉页脚整体换肤。下面的定理盒子即用
+默认蓝色主题渲染，作为对比参照：
+
+\begin{theorem}[换肤效果]
+颜色定制只需覆盖四个核心变量，无需改动任何环境定义。
+\end{theorem}
+
+\section{页眉页脚深度定制}
+
+模板使用 \texttt{fancyhdr}，其核心概念是"样式 + 分区命令"：
+
+\begin{lstlisting}
+\pagestyle{fancy}                 % 启用 fancy 样式
+\fancyhf{}                        % 清空默认页眉页脚
+\fancyhead[L]{\small\leftmark}    % 左页眉：当前章名
+\fancyhead[R]{\small\rightmark}   % 右页眉：当前节名
+\fancyfoot[C]{\small\thepage}     % 页脚居中页码
+\renewcommand{\headrulewidth}{0.6pt}   % 页眉横线粗细
+\renewcommand{\footrulewidth}{0pt}     % 页脚横线
+\end{lstlisting}
+
+\verb|\leftmark| 与 \verb|\rightmark| 是 LaTeX 内置的
+"标记机制"输出：\verb|\chapter| 在内部调用
+\verb|\markboth{章名}{章名}|，\verb|\section| 调用
+\verb|\markright{节名}|，页眉据此显示"当前正在阅读哪一节"。
+标记随内容自动更新，这是页眉与手写固定文字的
+本质区别。
+
+\section{章节标题样式定制}
+
+标题样式由 \texttt{titlesec} 控制，可用
+\verb|\titleformat| 修改：
+
+\begin{lstlisting}
+\titleformat{\section}
+  {\Large\bfseries\color{structurecolor}}  % 格式
+  {\thesection}                             % 编号
+  {0.5em}                                   % 编号与标题间距
+  {}                                        % 标题前内容
+\titleformat{\chapter}[display]
+  {\Huge\bfseries\color{structurecolor}}
+  {\chaptername\ \thechapter}{20pt}{}
+\end{lstlisting}
+
+\verb|\titleformat| 的五个参数依次为：命令名、标题字体格式、
+编号格式、编号与标题间的水平间距、标题文本前插入的内容；
+可选参数 \texttt{[display]} 表示章标题独占多行（通栏式）。
+
+\section{目录定制}
+
+目录由 \texttt{tocloft} 控制，常用定制包括：
+
+\begin{lstlisting}
+% 章标题加粗着色
+\renewcommand{\cftchapfont}{\bfseries\color{structurecolor}}
+% 页码框宽度（页码右对齐）
+\setlength{\cftchapnumwidth}{2em}
+% 去除目录条目的点线（默认保留）
+\renewcommand{\cftdot}{.}
+\end{lstlisting}
+
+目录条目由 \verb|\addcontentsline| 机制收集（见第五章
+\texttt{.toc} 格式），样式定制只需改上述命令。
+
+\section{习题与答案机制}
+
+模板提供习题与答案配套的写作方式：
+
+\begin{lstlisting}
+\begin{exercise}[单调有界]
+证明单调有界数列必收敛。
+\end{exercise}
+
+\begin{solution}
+由确界原理：设上界存在，则上确界即极限。
+\end{solution}
+\end{lstlisting}
+
+若想发布\emph{不含答案}的版本，只需在文档类选项中加入
+\texttt{result=noanswer}：
+\begin{lstlisting}
+\documentclass[lang=cn, result=noanswer]{elegantbook}
+\end{lstlisting}
+此时 \texttt{solution} 与 \texttt{proof} 环境的内容会被自动
+\emph{注释掉}（cls 内部用 \texttt{comment} 宏包的
+\verb|\excludecomment| 实现），习题册与教师版可共用一份源码。
+章末习题集使用 \texttt{problemset} 环境：
+
+\begin{lstlisting}
+\begin{problemset}
+\item 习题一...
+\item 习题二...
+\end{problemset}
+\end{lstlisting}
+
+\section{双语机制}
+
+\texttt{lang} 选项不仅切换 ctex/babel，还切换模板内部的
+\textbf{名称宏}。例如中文模式下定义
+\verb|\theoremname|、\verb|\definitionname| 等，英文模式下
+分别定义为 Theorem、Definition。这些名称宏统一约定为
+"\texttt{环境名 + name}"：
+
+\begin{table}[htbp]
+  \centering
+  \caption{语言名称宏约定}\label{tab:names}
+  \begin{tabular}{lll}
+    \toprule
+    名称宏 & 中文 & 英文 \\
+    \midrule
+    \texttt{\textbackslash theoremname} & 定理 & Theorem \\
+    \texttt{\textbackslash definitionname} & 定义 & Definition \\
+    \texttt{\textbackslash lemmname} & 引理 & Lemma \\
+    \texttt{\textbackslash proofname} & 证明 & Proof \\
+    \texttt{\textbackslash introductionname} & 本章导言 & Introduction \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+这也是第四章 \verb|\elegantnewtheorem{...}| 要求环境名对应的
+名称宏已定义的原因（未定义会触发文档类错误）。若使用模板未
+覆盖的语言，可自行定义这些名称宏后配合 \texttt{lang=cn}
+使用。
+
+\section{分章编译与多人协作}
+
+大书写作时推荐 \texttt{includeonly} 只编译当前章节，大幅
+缩短单次编译时间：
+
+\begin{lstlisting}
+% 主文件导言区：只编译第二章
+\includeonly{chapters/ch02_quickstart}
+\include{chapters/ch01_overview}
+\include{chapters/ch02_quickstart}
+...
+\end{lstlisting}
+
+\verb|\includeonly| 与 \verb|\include| 的配对使用是 LaTeX
+标准做法：未包含的章节不重新排版，但\emph{交叉引用与页码
+保持不变}（.aux 中保留了它们的记录）。配合 git 等版本控制，
+多作者可以按章并行写作、由一人负责主文件集成。

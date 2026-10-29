@@ -1,0 +1,163 @@
+% ============================================================================
+%  附录A  文档类选项/环境/宏包速查
+% ============================================================================
+
+\chapter{文档类选项速查}
+
+本附录汇总 ElegantBook v4.6 的完整接口，供写作时快速查阅。
+
+\section{文档类选项}
+
+\subsection{主题与外观}
+
+\begin{table}[htbp]
+  \centering
+  \caption{主题与外观选项}\label{tab:opt-look}
+  \begin{tabular}{lllp{5.5cm}}
+    \toprule
+    选项 & 默认值 & 可选值 & 说明 \\
+    \midrule
+    \texttt{color} & \texttt{blue} & green/cyan/blue/gray/black/none &
+      主题色；\texttt{none} 表示不使用主题色 \\
+    \texttt{mode} & \texttt{fancy} & fancy/simple & 华丽/简约版式 \\
+    \texttt{titlestyle} & \texttt{hang} & hang/display & 章节标题样式 \\
+    \texttt{toc} & \texttt{onecol} & onecol/twocol & 目录单/双栏 \\
+    \texttt{marginpar} & \texttt{marginfalse} & margintrue/marginfalse &
+      是否启用边注栏 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{语言与字体}
+
+\begin{table}[htbp]
+  \centering
+  \caption{语言与字体选项}\label{tab:opt-lang}
+  \begin{tabular}{lllp{5.5cm}}
+    \toprule
+    选项 & 默认值 & 可选值 & 说明 \\
+    \midrule
+    \texttt{lang} & \texttt{en} & cn/en/it/fr/nl/hu/de/mn/pt/jp &
+      文档语言（中文选 \texttt{cn}）\\
+    \texttt{scheme} & --- & chinese & 中文方案（旧版兼容）\\
+    \texttt{chinesefont} & \texttt{ctexfont} & ctexfont/founder/nofont &
+      中文字体方案；\texttt{nofont} 由用户自行配置 \\
+    \texttt{math} & \texttt{cm} & cm/newtx/mtpro2 & 数学字体 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{版面与编号}
+
+\begin{table}[htbp]
+  \centering
+  \caption{版面与编号选项}\label{tab:opt-layout}
+  \begin{tabular}{lllp{5.5cm}}
+    \toprule
+    选项 & 默认值 & 可选值 & 说明 \\
+    \midrule
+    \texttt{device} & \texttt{normal} & normal/pad & 普通/平板优化版面 \\
+    \texttt{thmcnt} & \texttt{chapter} & chapter/section &
+      定理编号的计数域 \\
+    \texttt{usesamecnt} & 关闭 & 开启 & 全部定理共用计数器 \\
+    \texttt{result} & \texttt{answer} & answer/noanswer &
+      是否输出习题答案/证明内容 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{参考文献}
+
+\begin{table}[htbp]
+  \centering
+  \caption{参考文献选项}\label{tab:opt-bib}
+  \begin{tabular}{lllp{5.5cm}}
+    \toprule
+    选项 & 默认值 & 可选值 & 说明 \\
+    \midrule
+    \texttt{citestyle} & \texttt{numeric-comp} & biblatex 引用样式 &
+      正文引用编号格式 \\
+    \texttt{bibstyle} & \texttt{numeric} & biblatex 文献样式 &
+      文献列表格式 \\
+    \texttt{bibend} & \texttt{biber} & biber/bibtex & 参考文献后端 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{环境速查}
+
+\subsection{定理类环境（fancy 模式）}
+
+\begin{table}[htbp]
+  \centering
+  \caption{定理类环境}\label{tab:env-quick}
+  \begin{tabular}{llll}
+    \toprule
+    环境 & 编号 & 样式色 & 说明 \\
+    \midrule
+    \texttt{theorem} & 有（含 \texttt{*} 版） & second & 定理 \\
+    \texttt{lemma} / \texttt{corollary} & 有 & second & 引理 / 推论 \\
+    \texttt{axiom} / \texttt{postulate} & 有 & second & 公理 / 公设 \\
+    \texttt{proposition} & 有 & third & 命题 \\
+    \texttt{definition} & 有 & main & 定义 \\
+    \texttt{example} / \texttt{exercise} / \texttt{problem} & 有 & main & 例 / 习题 / 问题 \\
+    \texttt{proof} / \texttt{note} / \texttt{remark} & 无 & second & 证明 / 注记 \\
+    \texttt{assumption} / \texttt{conclusion} / \texttt{property} & 无 & third & 假设 / 结论 / 性质 \\
+    \texttt{solution} & 无 & main & 解答（受 \texttt{result} 控制）\\
+    \texttt{custom[标题]} & 无 & third & 自定义标题框 \\
+    \texttt{introduction} & 无 & structurecolor & 章前导言（双栏要点）\\
+    \texttt{problemset} & 无 & structurecolor & 章末习题集 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{公式与排版环境}
+
+\texttt{equation}/\texttt{align}/\texttt{gather}/\texttt{multline}/
+\texttt{cases}/\texttt{split}/\texttt{pmatrix}（来自 amsmath）；
+\texttt{itemize}/\texttt{enumerate}/\texttt{description}（列表）；
+\texttt{lstlisting}/\texttt{verbatim}（代码与原文）；
+\texttt{table}/\texttt{figure}（浮动体）；\texttt{quote}/
+\texttt{quotation}（引文）。
+
+\section{常用命令速查}
+
+\begin{description}
+  \item[封面元信息] \texttt{\textbackslash title}、
+        \texttt{\textbackslash subtitle}、\texttt{\textbackslash
+        author}、\texttt{\textbackslash institute}、
+        \texttt{\textbackslash date}、\texttt{\textbackslash
+        version}、\texttt{\textbackslash extrainfo}、
+        \texttt{\textbackslash logo}、\texttt{\textbackslash cover}、
+        \texttt{\textbackslash keywords}；
+  \item[引用] \texttt{\textbackslash ref}、\texttt{\textbackslash
+        eqref}、\texttt{\textbackslash pageref}、\texttt{\textbackslash
+        figref}、\texttt{\textbackslash tabref}、\texttt{\textbackslash
+        cite}；
+  \item[自定义] \texttt{\textbackslash elegantnewtheorem}、
+        \texttt{\textbackslash definecolor}、\texttt{\textbackslash
+        colorlet}、\texttt{\textbackslash setCJKmainfont}；
+  \item[其他] \texttt{\textbackslash and}（多作者）、
+        \texttt{\textbackslash include}/\texttt{\textbackslash
+        includeonly}（分章）、\texttt{\textbackslash addbibresource}、
+        \texttt{\textbackslash printbibliography}。
+\end{description}
+
+\section{内部加载的宏包}
+
+文档类自动加载以下宏包（用户一般无需重复加载）：
+\texttt{kvoptions}、\texttt{etoolbox}、\texttt{setspace}、
+\texttt{csquotes}、\texttt{hyperref}、\texttt{geometry}、
+\texttt{indentfirst}、\texttt{comment}、\texttt{fontspec}、
+\texttt{ctex}（\texttt{lang=cn} 时）、\texttt{anyfontsize}、
+\texttt{newtxmath}、\texttt{esint}、\texttt{xcolor}、
+\texttt{mwe}、\texttt{enumerate}、\texttt{enumitem}、
+\texttt{caption}、\texttt{footmisc}、\texttt{graphicx}、
+\texttt{amsmath} 系列、\texttt{booktabs}、\texttt{multicol}、
+\texttt{multirow}、\texttt{fancyvrb}、\texttt{makecell}、
+\texttt{lipsum}、\texttt{hologo}、\texttt{titlesec}、
+\texttt{appendix}、\texttt{biblatex}、\texttt{tikz}、
+\texttt{apptools}、\texttt{pifont}、\texttt{manfnt}、
+\texttt{bbding}、\texttt{tcolorbox}、\texttt{amsthm}、
+\texttt{adforn}、\texttt{fancyhdr}、\texttt{listings}、
+\texttt{bm}、\texttt{calc}、\texttt{tocloft}。

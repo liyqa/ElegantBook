@@ -1,0 +1,453 @@
+% ============================================================================
+%  第四章  定理环境：设计与算法实现
+% ============================================================================
+
+\chapter{定理环境：设计与算法实现}
+
+定理、定义、引理等"定理类环境"是数学书籍的核心元素。ElegantBook
+在 \texttt{fancy} 模式下用 \texttt{tcolorbox} 把它们包装成带彩色
+标题条的圆角盒子，在 \texttt{simple} 模式下退化为 \texttt{amsthm}
+的经典样式。本章剖析其内部设计：编号如何产生、盒子如何构造、
+用户如何扩展。
+
+\section{环境总览}
+
+ElegantBook 预置的定理类环境如下表所示（\texttt{fancy} 模式）：
+
+\begin{table}[htbp]
+  \centering
+  \caption{预置定理类环境与配色}\label{tab:envs}
+  \begin{tabular}{llll}
+    \toprule
+    环境 & 样式 & 边框/标题色 & 右下角装饰 \\
+    \midrule
+    \texttt{definition} & defstyle & main（绿） & $\clubsuit$ \\
+    \texttt{theorem, lemma, corollary, axiom, postulate} & thmstyle & second（橙） & $\heartsuit$ \\
+    \texttt{proposition} & prostyle & third（蓝） & $\spadesuit$ \\
+    \texttt{example, exercise, problem, solution} & 独立计数器 & main & --- \\
+    \texttt{proof, note, remark} & 独立样式 & second & --- \\
+    \texttt{assumption, property, conclusion, custom} & 独立样式 & third & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+每种环境都附带"不带编号"的星号版本（如 \texttt{theorem*}），
+用于不需要编号的情形。环境还支持可选参数（标题），例如
+\verb|\begin{theorem}[夹逼定理]|。
+
+\begin{example}[定理环境的使用]
+\begin{theorem}[夹逼定理]
+若 $x_n\leqslant y_n\leqslant z_n$（$n\geqslant1$），且
+$\lim\limits_{n\to\infty}x_n=\lim\limits_{n\to\infty}z_n=a$，
+则 $\lim\limits_{n\to\infty}y_n=a$。
+\end{theorem}
+\end{example}
+
+\section{编号机制}
+
+\subsection{按章编号}
+
+默认情况下（选项 \texttt{thmcnt=chapter}），定理编号形如
+"定理 4.1"，其中前导数字来自章计数器。在 \texttt{fancy} 模式下，
+这一机制由 tcolorbox 的 \texttt{auto counter} 与
+\texttt{number within} 实现：
+
+\begin{lstlisting}
+\DeclareTColorBox[auto counter, number within=\ELEGANT@thmcnt]{...}{...}
+\end{lstlisting}
+
+其数学本质是：设 $c_{\mathrm{thm}}$ 为定理计数器，$c_{\mathrm{ch}}$
+为章计数器，则编号函数为
+\begin{equation}
+  \mathrm{No} = \varphi\bigl(c_{\mathrm{ch}}, c_{\mathrm{thm}}\bigr)
+  = c_{\mathrm{ch}} \cdot 10^{k} + c_{\mathrm{thm}},
+  \qquad k = \lceil \log_{10}(c_{\mathrm{thm}}+1)\rceil,
+  \label{eq:numbering}
+\end{equation}
+即显示为"章号.序号"的十进制拼接（$k$ 为序号位数）。
+章计数器 $c_{\mathrm{ch}}$ 每增加 $1$，$\varphi$ 的"前缀"随之
+更新——这正是 \verb|\numberwithin| 的作用。
+
+\subsection{按节编号与共享计数器}
+
+若希望定理按"节"编号（如 4.2.1），使用选项
+\begin{lstlisting}
+\documentclass[..., thmcnt=section]{elegantbook}
+\end{lstlisting}
+此时 \texttt{number within=\thesection}，编号前缀随节计数器更新。
+
+若希望所有定理类环境\textbf{共用同一计数器}（例如 定理 1、定义 2、
+引理 3 连续编号），使用选项 \texttt{usesamecnt}。文档类内部定义
+共享计数器并令各环境 \texttt{use counter from} 它：
+\begin{lstlisting}
+\newcounter{ELEGANT@samecnt}
+\counterwithin{ELEGANT@samecnt}{\ELEGANT@thmcnt}
+\tcbset{new/usesamecnt/.style = {use counter = ELEGANT@samecnt}}
+\end{lstlisting}
+
+\begin{remark}
+例（example）环境使用独立计数器 \texttt{exam}：
+\verb|\newcounter{exam}[chapter]| 并在环境开头
+\verb|\refstepcounter{exam}|，因此编号与定理计数器互不干扰，
+但同样遵循"章.序号"格式。
+\end{remark}
+
+\section{盒子的内部构造}
+
+在 \texttt{fancy} 模式下，每个定理盒子由 tcolorbox 渲染。
+样式系统由三套键值组成：
+
+\begin{lstlisting}
+common/.style={
+  fontupper=\citshape,      % 正文字体
+  colback=gray!5,           % 背景色：浅灰
+  boxrule=0.5pt,            % 边框宽度
+  enhanced, breakable,      % 增强模式 + 跨页断行
+  attach boxed title to top left={yshift=-0.11in, xshift=0.15in},
+  boxed title style={boxrule=0pt, colframe=white, arc=0pt},
+  separator sign={.},       % 编号与标题之间的分隔符
+}
+\end{lstlisting}
+
+其排版结构如图~\figref{fig:box} 所示：\textbf{标题条}（白字 + 主题色
+背景）悬挂在盒子左上角，正文区域为浅色底 + 细边框，右下角还有一个
+主题色装饰符号（$\clubsuit$/$\heartsuit$/$\spadesuit$），
+通过 \texttt{overlay} 钩子绘制在盒子内层。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[font=\small]
+    % 盒子主体
+    \draw[fill=main!5, draw=main, thick, rounded corners=2pt]
+      (0,0) rectangle (10,-2.6);
+    % 标题条
+    \draw[fill=main, rounded corners=2pt] (-0.06,0.16) rectangle (3.4,-0.6);
+    \node[white] at (1.6,-0.22) {\bfseries 定义 4.1};
+    % 正文示意
+    \node[left] at (0.35,-1.4) {正文区域（浅色填充、斜体）};
+    \draw[main, thick] (8.6,-2.35) node[right, main] {$\clubsuit$};
+  \end{tikzpicture}
+  \caption{定理盒子的结构示意}\label{fig:box}
+\end{figure}
+
+三个基础样式分别绑定不同主题色（见式 \eqref{eq:theme}）：
+\begin{equation}
+  \begin{aligned}
+    \texttt{defstyle} &: \ \texttt{colframe}=\texttt{main},\quad
+      \texttt{colback}=\texttt{main!5},\\
+    \texttt{thmstyle} &: \ \texttt{colframe}=\texttt{second},\quad
+      \texttt{colback}=\texttt{second!5},\\
+    \texttt{prostyle} &: \ \texttt{colframe}=\texttt{third},\quad
+      \texttt{colback}=\texttt{third!5}.
+  \end{aligned}
+  \label{eq:theme}
+\end{equation}
+其中 \texttt{main}、\texttt{second}、\texttt{third} 是文档类在
+加载阶段根据 \texttt{color} 选项预先定义好的三套主题色
+（参见第三章颜色一节），\texttt{!5} 表示与白色按 $5\%:95\%$
+混合出极浅的底色——这是 \texttt{xcolor} 的混色语法：
+\begin{equation}
+  \texttt{col}!5 \;\equiv\; 5\%\,\texttt{col} + 95\%\,\texttt{white}.
+\end{equation}
+
+\section{证明环境与 QED 符号}
+
+\verb|proof| 环境在 \texttt{fancy} 模式下同样由 tcolorbox 渲染，
+但默认\textbf{不带编号}，且在末尾自动追加 QED 符号（证明结束符）。
+其内部通过 \texttt{amsthm} 的 \verb|\qed| 机制实现：
+
+\begin{lstlisting}
+\begin{proof}
+由定义直接验证即可。
+\end{proof}
+\end{lstlisting}
+
+渲染结果如下：
+
+\begin{proof}
+由定义 \ref{ex:converge} 直接验证即可：取 $N$ 为满足条件的下标，
+当 $n>N$ 时不等式成立，故收敛。
+\end{proof}
+
+QED 符号的数学意义是"证明链终止"：它标记一个逻辑推导序列的闭合点，
+排版惯例上右对齐、无标点，与正文最后一行保持同一基线。
+
+\section{自定义定理环境}
+
+用户可以用文档类提供的 \verb|\elegantnewtheorem| 命令定义新环境，
+语法为
+\begin{lstlisting}
+\elegantnewtheorem{环境名}{显示名}{样式}[标签前缀]
+% 样式可选: thmstyle / defstyle / prostyle
+\end{lstlisting}
+
+例如，定义一个名为"猜想"（conjecture）的定理环境：
+
+\begin{lstlisting}
+\elegantnewtheorem{conjecture}{猜想}{prostyle}{conj}
+\end{lstlisting}
+
+之后即可像内置环境一样使用：
+\begin{lstlisting}
+\begin{conjecture}{哥德巴赫猜想}{goldbach}
+每个大于 2 的偶数都可以表示为两个素数之和。
+\end{conjecture}
+\end{lstlisting}
+
+\begin{remark}
+在 \texttt{fancy} 模式下，第三个参数给出引用标签的前缀，
+即用 \verb|\ref{conj:goldbach}| 引用；若省略前缀，将使用环境名
+作为前缀并给出警告。在 \texttt{simple} 模式下不允许指定前缀。
+\end{remark}
+
+\section{盒子构造的算法描述}
+
+把以上机制汇总，\texttt{fancy} 模式下每个定理盒子的完整构造流程
+可以形式化为算法~\ref{alg:theorem}。
+
+\begin{algorithm}[htbp]
+  \caption{定理盒子的构造流程（fancy 模式）}\label{alg:theorem}
+  \begin{algorithmic}[1]
+    \Require 环境名 $e$，编号域 $d$（\texttt{chapter} 或 \texttt{section}）
+    \Ensure 可使用的定理环境 $e$ 与 $e^{*}$（无编号版）
+    \State 声明计数器 $c_e$，并令 \texttt{number within =} $d$
+    \If{启用 \texttt{usesamecnt}}
+      \State 令 $c_e$ 共享计数器 \texttt{ELEGANT@samecnt}
+    \EndIf
+    \State 按 $e$ 绑定样式：defstyle / thmstyle / prostyle
+    \State 配置标题格式：显示名 + \texttt{No}($c_e$) + 可选标题
+    \State 配置盒子：\texttt{breakable}（跨页）、\texttt{attach boxed
+      title}（标题条悬挂）、\texttt{overlay}（右下角装饰符号）
+    \State 注册标签解析：\texttt{label=}\{前缀:标签\}
+    \State 生成星号版本 $e^{*}$：仅样式、无计数、无标签
+  \end{algorithmic}
+\end{algorithm}
+
+注意第~2 步：编号在进入环境时通过 \texttt{auto counter} 自动
+\verb|\refstepcounter|，因此 \verb|\label| 捕获的正是当前编号，
+从而保证 \verb|\ref| 交叉引用正确（参见第五章的引用解析）。
+
+\section{声明的完整语法}
+
+在 \texttt{fancy} 模式下，每个定理环境由 tcolorbox 的
+\verb|\DeclareTColorBox| 声明（摘自 \texttt{elegantbook.cls}
+的 \verb|\ELEGANT@newtheorem|）：
+
+\begin{lstlisting}
+\DeclareTColorBox[auto counter, number within=\ELEGANT@thmcnt,
+                  usesamecnt, usecnt]{#1}{ g o t\label g }{
+  common, #3,
+  IfValueTF={##1}{ELEGANT@title={#1}{##1}}
+    {IfValueTF={##2}{ELEGANT@title={#1}{##2}}
+                   {ELEGANT@title={#1}{}}},
+  IfValueT={##4}{ IfBooleanTF={##3}{label={##4}}
+                              {ELEGANT@label={#2}{##4}} }
+}
+\end{lstlisting}
+
+参数签名 \texttt{g o t\label g} 定义了环境的调用语法，它依次对应：
+
+\begin{table}[htbp]
+  \centering
+  \caption{环境参数签名解析}\label{tab:signature}
+  \begin{tabular}{llp{7.5cm}}
+    \toprule
+    签名 & 含义 & 示例 \\
+    \midrule
+    \texttt{g} & 强制参数（组）& 标题，如 \texttt{[夹逼定理]} \\
+    \texttt{o} & 可选参数 & 标题的另一种写法 \\
+    \texttt{t\textbackslash label} & 测试 \texttt{\textbackslash label}
+      & 检测是否给出了 \texttt{\textbackslash label} 命令 \\
+    \texttt{g} & 强制参数（组）& 标签名，如 \texttt{\{thm:squeeze\}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+也就是说，\verb|\begin{theorem}[标题]\label{thm:x}| 与
+\verb|\begin{theorem}[标题][thm:x]| 是两种等价写法；
+前者是 amsthm 风格（推荐），后者是 tcolorbox 风格。
+
+\section{计数器机制详解}
+
+\subsection{计数器的基本操作}
+
+LaTeX 计数器是排版编号的底层机制，常用操作如下：
+
+\begin{table}[htbp]
+  \centering
+  \caption{计数器操作命令}\label{tab:counterops}
+  \begin{tabular}{llp{6.5cm}}
+    \toprule
+    命令 & 作用 & 示例 \\
+    \midrule
+    \texttt{\textbackslash newcounter\{c\}[within]}
+      & 声明计数器，可选"从属"计数器 &
+      \texttt{\textbackslash newcounter\{exam\}[chapter]} \\
+    \texttt{\textbackslash setcounter\{c\}\{n\}} & 设值为 $n$ & --- \\
+    \texttt{\textbackslash addtocounter\{c\}\{n\}} & 加 $n$ & --- \\
+    \texttt{\textbackslash stepcounter\{c\}} & 加 1，重置从属计数器 & --- \\
+    \texttt{\textbackslash refstepcounter\{c\}} & 加 1 并更新引用值 &
+      供 \texttt{\textbackslash label} 捕获 \\
+    \texttt{\textbackslash value\{c\}} & 取出数值参与运算 & --- \\
+    \texttt{\textbackslash thec} & 计数器 c 的显示格式 &
+      \texttt{\textbackslash thechapter.\textbackslash arabic\{exam\}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\verb|\newcounter{exam}[chapter]| 的含义是：exam 从属于 chapter，
+每当 \texttt{chapter} 被 \texttt{\textbackslash stepcounter} 或
+\verb|\refstepcounter| 递增时，exam 自动清零——这正是"定理 4.1、
+4.2、4.3"在进入第五章后重新从"5.1"编号的原理。
+
+\subsection{number within 与共享计数器}
+
+tcolorbox 的 \texttt{auto counter} 等价于
+\verb|\newtcolorbox| 内建计数器配合
+\verb|\numberwithin{counter}{within}|。而
+\verb|\numberwithin| 的实质是两步：
+\begin{enumerate}
+  \item 把 counter 挂到 within 之下（清零联动）；
+  \item 重定义显示格式 \verb|\thecounter| 为
+        \verb|\thewithin.\arabic{counter}|。
+\end{enumerate}
+
+共享计数器选项 \texttt{usesamecnt} 则是把
+\verb|ELEGANT@samecnt| 这个计数器"借"给所有定理环境
+（\texttt{use counter from = ELEGANT@samecnt}），
+使它们不再各自编号，而是连续编号。
+
+\section{\textbackslash label 的捕获原理}
+
+\verb|\refstepcounter{thm}| 除了递增计数器，还会设置
+\verb|\@currentlabel=\thethm|。随后遇到的
+\verb|\label{key}| 把二元组写入 \texttt{.aux} 文件：
+\begin{verbatim}
+\newlabel{thm:squeeze}{{4.3}{58}}
+\end{verbatim}
+即 \texttt{key} 对应的\emph{显示编号}为 4.3、页码为 58。
+\verb|\ref{thm:squeeze}| 在下一遍编译时读入该条目并输出 4.3，
+\verb|\pageref{thm:squeeze}| 输出 58。
+若 \verb|\label| 放在 \verb|\refstepcounter| 之前（例如写在
+环境外），捕获的将是\emph{上一个}计数器的值——这是交叉引用
+错位的头号原因。
+
+\section{全部预置环境示例}
+
+下表环境的实际渲染效果逐一列出（编号与标题均可省略）：
+
+\begin{axiom}[完备性公理]
+实数集 $\mathbb{R}$ 的任一非空有上界的子集在 $\mathbb{R}$
+中存在上确界。
+\end{axiom}
+
+\begin{postulate}[平行公设]
+过直线外一点，有且仅有一条直线与已知直线平行。
+\end{postulate}
+
+\begin{corollary}
+若函数在闭区间上连续，则它在该区间上有界。
+\end{corollary}
+
+\begin{lemma}[Schwarz 不等式]
+对任意 $a_i,b_i\in\mathbb{R}$，有
+$\left(\sum_i a_i b_i\right)^2 \leqslant
+\left(\sum_i a_i^2\right)\left(\sum_i b_i^2\right)$。
+\end{lemma}
+
+\begin{proposition}
+两个单调递增函数之和仍单调递增。
+\end{proposition}
+
+\begin{exercise}
+证明：$\lim\limits_{n\to\infty}\sqrt[n]{n}=1$。
+\end{exercise}
+
+\begin{problem}[Fibonacci 界]
+证明 $F_n \leqslant \varphi^{n-1}$，其中 $\varphi$ 为黄金比。
+\end{problem}
+
+\begin{solution}
+用数学归纳法，结合 $F_{n+1}=F_n+F_{n-1}$ 与
+$\varphi^2=\varphi+1$ 即可。
+\end{solution}
+
+\begin{note}
+本页所有环境均来自 \texttt{elegantbook.cls} 的预置定义，
+未作任何二次定制。
+\end{note}
+
+\begin{assumption}
+函数在定义域内足够光滑（至少二阶可导）。
+\end{assumption}
+
+\begin{conclusion}
+模板的定理体系覆盖了数学写作的绝大多数场景。
+\end{conclusion}
+
+\begin{property}
+定积分具有可加性：$\int_a^c f = \int_a^b f + \int_b^c f$。
+\end{property}
+
+\begin{custom}{自定义小节框}
+\texttt{custom} 环境可自由指定标题，用于补充说明。
+\end{custom}
+
+\begin{introduction}
+\item 本章覆盖计数器、标签与盒子样式的全部原理；
+\item 全部环境的渲染效果一目了然；
+\item 下一节给出简约模式的实现对比。
+\end{introduction}
+
+\begin{problemset}
+\item 习题组一：证明两个收敛序列之积收敛。
+\item 习题组二：构造一个无处连续的函数。
+\end{problemset}
+
+\begin{remark}
+\verb|example|、\verb|exercise|、\verb|problem| 使用独立计数器，
+不带 \texttt{*} 版本；\verb|note|、\verb|remark| 等则完全
+不编号。带编号的环境才有 \texttt{*} 版本（如
+\verb|\begin{theorem*}|）。
+\end{remark}
+
+\section{简约模式（simple）的实现}
+
+\texttt{mode=simple} 时，定理环境不再使用 tcolorbox，而退化为
+\texttt{amsthm} 的经典三行样式（摘自 cls）：
+
+\begin{lstlisting}
+\newtheoremstyle{thmstyle}{3pt}{3pt}{\citshape}{-3pt}{
+  \bfseries\color{second}}{}{0.5em}
+  {\thmname{#1} \thmnumber{#2} \thmnote{(#3)}}
+\newtheoremstyle{defstyle}{3pt}{3pt}{\citshape}{-3pt}{
+  \bfseries\color{main}}{}{0.5em}
+  {\thmname{#1} \thmnumber{#2} \thmnote{(#3)}}
+\end{lstlisting}
+
+\verb|\newtheoremstyle| 的六个参数依次为：上下间距、正文样式、
+标题缩进、标题样式（含颜色）、标题后间距、标题格式
+（\texttt{\textbackslash thmname}/\texttt{\textbackslash
+thmnumber}/\texttt{\textbackslash thmnote} 分别代表
+名称/编号/备注）。编号仍由 \texttt{amsthm} 的
+\verb|\newtheorem{thm}{...}[\ELEGANT@thmcnt]| 提供，
+因此在 \texttt{simple} 模式下 \verb|\ref| 依然正确。
+
+两种模式的对比如下：
+
+\begin{table}[htbp]
+  \centering
+  \caption{fancy 与 simple 模式对比}\label{tab:modes}
+  \begin{tabular}{lcc}
+    \toprule
+    项目 & fancy & simple \\
+    \midrule
+    渲染引擎 & tcolorbox & amsthm \\
+    彩色盒子/标题条 & 有 & 无 \\
+    断页（breakable）& 支持 & 依赖 amsthm \\
+    星号环境 & 有 & 有 \\
+    标签前缀参数 & 有 & 无（会报错）\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+

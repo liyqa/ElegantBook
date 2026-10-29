@@ -1,0 +1,544 @@
+% ============================================================================
+%  第二章  快速入门
+% ============================================================================
+
+\chapter{快速入门}
+
+本章从一个最小示例出发，介绍从零开始编写一份 ElegantBook 中文文档的
+完整流程：源文件怎么写、怎么编译、常用环境怎么用、出现问题怎么排错。
+读者只需跟随本章操作即可产出第一份成品。
+
+\section{一个最小示例}
+
+下面是最小的完整源文件（假设文件名为 \texttt{main.tex}）：
+
+\begin{lstlisting}
+% main.tex —— 最小示例
+\documentclass[lang=cn]{elegantbook}
+
+\title{我的第一本书}
+\author{张三}
+\institute{某某大学}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\chapter{引言}
+这是一本用 ElegantBook 排版的书籍。
+\end{document}
+\end{lstlisting}
+
+将以上内容保存为 \texttt{main.tex} 后，依次执行第~\ref{sec:compile}~节给出的
+四条命令，即可得到 \texttt{main.pdf}：其中封面、目录、章节标题的排版
+全部由文档类自动完成。可以看到，用户只需要填写元信息与正文内容，
+其余工作（封面绘制、页眉页脚、目录生成、超链接着色等）都由模板代劳。
+
+\section{编译流程与引擎要求}\label{sec:compile}
+
+ElegantBook 的中文模式需要 \textbf{XeLaTeX} 引擎（它原生支持 UTF-8 与系统
+字体），因此请使用 XeLaTeX 编译；若使用 \texttt{lang=en} 的纯英文文档，
+则 pdfLaTeX 亦可。推荐的完整编译命令为：
+
+\begin{verbatim}
+xelatex main.tex      % 第 1 遍：生成 .aux、.toc、.bcf 等辅助文件
+biber   main          % 处理参考文献：读 .bcf，写 .bbl
+xelatex main.tex      % 第 2 遍：引用参考文献并写入目录
+xelatex main.tex      % 第 3 遍：收敛页码与交叉引用
+\end{verbatim}
+
+为什么需要多遍编译？因为 LaTeX 采用"两遍/多遍编译"模型：第一遍只知道
+每个\emph{标签}（\verb|\label|）的位置，但页码与编号要等排版完成才能确定；
+目录（\texttt{.toc}）、交叉引用（\texttt{.aux}）和参考文献（\texttt{.bbl}）
+正是在各遍之间传递信息的文件。若正文或引用有变动，第三遍通常已足够收敛。
+
+\begin{remark}
+也可以使用 \texttt{latexmk} 自动完成上述流程：
+\begin{verbatim}
+latexmk -xelatex -interaction=nonstopmode main.tex
+\end{verbatim}
+该工具会监测源文件变化并自动重跑所需遍数，适合写作阶段使用。
+\end{remark}
+
+\section{文档类选项}
+
+\verb|\documentclass| 的可选参数以键值对形式给出，最常用的组合如下：
+
+\begin{lstlisting}
+\documentclass[11pt,a4paper,lang=cn,color=blue,mode=fancy,
+               device=normal,math=cm,titlestyle=hang]{elegantbook}
+\end{lstlisting}
+
+其中各选项的含义为：
+
+\begin{description}
+  \item[\texttt{lang=cn}] 语言环境，中文排版；可选 \texttt{en}（英文）、
+        \texttt{fr}（法文）、\texttt{de}（德文）、\texttt{jp}（日文）等；
+  \item[\texttt{color=blue}] 主题色，可选 \texttt{green}、\texttt{cyan}、
+        \texttt{blue}、\texttt{gray}、\texttt{black}、\texttt{nocolor}；
+  \item[\texttt{mode=fancy}] 版式，\texttt{fancy} 为华丽版（默认），
+        \texttt{simple} 为简约版；
+  \item[\texttt{device=normal}] 输出设备，\texttt{normal}（默认）或
+        \texttt{pad}（平板优化）；
+  \item[\texttt{math=cm}] 数学字体，\texttt{cm}（默认，Computer Modern）、
+        \texttt{newtx}（Times 风格）或 \texttt{mtpro2}；
+  \item[\texttt{titlestyle=hang}] 章节标题样式，\texttt{hang}（悬挂式，
+        默认）或 \texttt{display}（通栏式）。
+\end{description}
+
+其余选项（如 \texttt{chinesefont}、\texttt{toc}、\texttt{thmcnt}、
+\texttt{citestyle}、\texttt{bibend} 等）在附录~A 中给出完整速查表。
+
+\section{封面与前置部分}
+
+在正文之前，需要填写封面元信息。ElegantBook 提供的封面命令包括：
+
+\begin{lstlisting}
+\title{书名}                 % 必须
+\subtitle{副标题}            % 可选
+\author{作者}                % 必须
+\institute{单位/学校}        % 可选
+\date{2026 年 8 月}          % 可选，默认当天
+\version{1.0}                % 可选，显示在封面
+\extrainfo{副信息}           % 可选
+\logo{figures/logo.pdf}      % 可选，封面校徽
+\cover{figures/cover.pdf}    % 可选，整页封面图
+\keywords{关键词}            % 可选
+\end{lstlisting}
+
+然后在 \verb|\begin{document}| 之后依次调用
+\verb|\maketitle|、\verb|\tableofcontents|，并用
+\verb|\frontmatter|/\verb|\mainmatter| 划分前置部分与正文：
+
+\begin{lstlisting}
+\begin{document}
+\maketitle
+\frontmatter
+\tableofcontents
+\mainmatter
+\include{chapters/ch01_overview}
+\include{chapters/ch02_quickstart}
+...
+\end{document}
+\end{lstlisting}
+
+其中 \verb|\include{chapters/xxx}| 用于按章分文件组织正文，
+这是大型文档推荐的写作方式：每一章一个 \texttt{.tex} 文件，
+正文使用 \verb|\chapter{}| 开头，编译时由主文件统一导入。
+
+\section{正文常用环境}
+
+\subsection{定理与证明}
+
+ElegantBook 提供了完整的定理盒子体系，用法与 \texttt{amsthm} 一致，
+只是外观被包装成了带主题色的圆角盒子：
+
+\begin{lstlisting}
+\begin{definition}[收敛]
+设 $\{x_n\}$ 是实数序列，若存在 $a\in\mathbb{R}$，使得对任意
+$\varepsilon>0$，存在 $N\in\mathbb{N}$，当 $n>N$ 时有
+$|x_n-a|<\varepsilon$，则称 $\{x_n\}$ 收敛于 $a$。
+\end{definition}
+
+\begin{theorem}[夹逼定理]
+若 $x_n\leqslant y_n\leqslant z_n$ 且 $\lim x_n=\lim z_n=a$，
+则 $\lim y_n=a$。
+\end{theorem}
+
+\begin{proof}
+由定义直接验证即可。
+\end{proof}
+\end{lstlisting}
+
+实际效果如本节下面的例~\ref{ex:converge} 所示（定理环境的具体实现原理
+见第四章）：
+
+\begin{definition}[收敛]\label{ex:converge}
+设 $\{x_n\}$ 是实数序列，若存在 $a\in\mathbb{R}$，使得对任意
+$\varepsilon>0$，存在 $N\in\mathbb{N}$，当 $n>N$ 时有
+$|x_n-a|<\varepsilon$，则称 $\{x_n\}$ 收敛于 $a$，记作
+$\lim\limits_{n\to\infty}x_n=a$。
+\end{definition}
+
+\subsection{数学公式}
+
+文档类已加载 \texttt{amsmath} 系列宏包，行内公式与多行公式均可直接使用：
+
+\begin{lstlisting}
+\begin{equation}
+  e^{i\pi}+1=0 \label{eq:euler}
+\end{equation}
+
+\begin{align}
+  (a+b)^2 &= a^2+2ab+b^2,\\
+  (a-b)^2 &= a^2-2ab+b^2.
+\end{align}
+\end{lstlisting}
+
+例如欧拉公式（\eqref{eq:euler}）被许多人称为数学中最美的公式之一：
+\begin{equation}
+  e^{i\pi}+1=0 \label{eq:euler}
+\end{equation}
+
+\subsection{插图}
+
+插图既可以使用外部图片（\texttt{graphicx}），也可以直接用 \texttt{tikz}
+绘制矢量图，后者无需额外文件、更利于保持文档自包含：
+
+\begin{lstlisting}
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \draw[fill=structurecolor!20] (0,0) circle (1);
+    \draw[->,thick] (0,0) -- (0.707,0.707);
+    \node at (0.4,0.9) {\scriptsize $\theta$};
+  \end{tikzpicture}
+  \caption{一个单位圆}\label{fig:unitcircle}
+\end{figure}
+\end{lstlisting}
+
+引用插图时可以使用文档类提供的 \verb|\figref|（或
+\verb|\tabref| 引用表格），例如"见图~\figref{fig:unitcircle}"：
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \draw[fill=structurecolor!20] (0,0) circle (1);
+    \draw[->,thick] (0,0) -- (0.707,0.707);
+    \node at (0.42,0.55) {\scriptsize $\theta$};
+    \draw[<->] (1.2,0) arc (0:45:1.2);
+  \end{tikzpicture}
+  \caption{一个单位圆}\label{fig:unitcircle}
+\end{figure}
+
+\subsection{表格}
+
+三线表使用 \texttt{booktabs} 的 \verb|\toprule|、
+\verb|\midrule|、\verb|\bottomrule|：
+
+\begin{lstlisting}
+\begin{table}[htbp]
+  \centering
+  \caption{示例数据}\label{tab:data}
+  \begin{tabular}{lcc}
+    \toprule
+    变量 & 均值 & 方差 \\
+    \midrule
+    $x$ & 0.0 & 1.0 \\
+    $y$ & 1.5 & 0.4 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\end{lstlisting}
+
+\subsection{代码列表}
+
+源代码环境由内置的 \texttt{listings} 配置提供，
+本手册中的全部示例代码均使用 \texttt{lstlisting} 环境排版。
+
+\subsection{列表}
+
+无序、有序、描述三种列表均可用，且项目符号被替换为主题色圆点：
+
+\begin{lstlisting}
+\begin{itemize}
+  \item 无序列表项
+\end{itemize}
+\begin{enumerate}
+  \item 有序列表项
+\end{enumerate}
+\begin{description}
+  \item[术语] 解释文字。
+\end{description}
+\end{lstlisting}
+
+\section{参考文献的使用}
+
+参考文献数据库写在 \texttt{refs.bib} 中，主文件前言用
+\verb|\addbibresource{refs.bib}| 引入：
+
+\begin{lstlisting}
+% refs.bib
+@book{lamport1994latex,
+  author    = {Lamport, Leslie},
+  title     = {LaTeX: A Document Preparation System},
+  edition   = {2nd},
+  publisher = {Addison-Wesley},
+  year      = {1994},
+}
+\end{lstlisting}
+
+正文中用 \verb|\cite{...}| 引用，文末用
+\verb|\printbibliography| 输出文献列表。例如
+\cite{lamport1994latex} 是 LaTeX 的经典入门著作。注意：引入了
+文献后，编译时必须在两次 \texttt{xelatex} 之间运行 \texttt{biber}，
+否则引用位置会出现问号。
+
+\section{常见问题与排错}
+
+\begin{description}
+  \item[\texttt{elegantbook.cls} 找不到] 说明发行版未安装该文档类。
+        解决方法：运行 \texttt{tlmgr install elegantbook}（TeX~Live），
+        或者把 \texttt{elegantbook.cls} 直接复制到源文件所在目录（推荐，
+        本手册即采用此方式保证自包含）；
+  \item[\texttt{File xxx.sty not found}] 缺少宏包，用
+        \texttt{tlmgr install xxx} 安装，或检查是否误用了 pdfLaTeX
+        编译中文文档；
+  \item[编译后中文乱码/缺字] 确认源文件为 UTF-8 编码，并确认系统中
+        存在中文字体（Windows 自带宋体/黑体/楷体）；
+  \item[引用显示为问号] 交叉引用需多编一次；参考文献需运行
+        \texttt{biber}；
+  \item[\texttt{biber} 报错] 检查主文件选项 \texttt{bibend} 与后端
+        是否一致（默认 \texttt{biber}，若用 BibTeX 后端则
+        需 \texttt{bibend=bibtex}）。
+\end{description}
+
+\section{最小示例逐行讲解}
+
+把第一节的最小示例逐行拆开，说明每一行的作用：
+
+\begin{table}[htbp]
+  \centering
+  \caption{最小示例逐行注释}\label{tab:linebyline}
+  \begin{tabular}{lp{9.5cm}}
+    \toprule
+    代码 & 作用 \\
+    \midrule
+    \texttt{\textbackslash documentclass[lang=cn]\{elegantbook\}}
+      & 声明使用 ElegantBook 文档类，启用中文模式；
+        之后才可编写正文 \\
+    \texttt{\textbackslash title\{...\}} 等四行
+      & 填写封面元信息：书名、作者、单位、日期 \\
+    \texttt{\textbackslash begin\{document\}}
+      & 正文开始（此前为导言区，只能放设置命令）\\
+    \texttt{\textbackslash maketitle}
+      & 按元信息自动排版整页封面并输出 \\
+    \texttt{\textbackslash tableofcontents}
+      & 输出目录（内容来自 \texttt{.toc} 文件）\\
+    \texttt{\textbackslash chapter\{引言\}}
+      & 开启一章；章标题自动进入目录与页眉 \\
+    \texttt{\textbackslash end\{document\}}
+      & 正文结束；\texttt{\textbackslash printbibliography} 等
+        收尾命令应在它之前 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+注意导言区（\verb|\begin{document}| 之前）只能放\textbf{设置类}命令，
+正文内容必须放在文档环境内——这是 LaTeX 最基本的语法边界。
+
+\section{辅助文件详解}
+
+编译过程中产生的辅助文件各有分工，了解它们有助于排查问题：
+
+\begin{table}[htbp]
+  \centering
+  \caption{辅助文件一览}\label{tab:auxfiles}
+  \begin{tabular}{llp{7.5cm}}
+    \toprule
+    文件 & 生产者 & 内容与作用 \\
+    \midrule
+    \texttt{.aux} & xelatex & 交叉引用表：\texttt{\textbackslash label}
+          与 \texttt{\textbackslash ref} 的信息交换 \\
+    \texttt{.toc} & xelatex & 目录条目，由 \texttt{\textbackslash
+          chapter} 等写入 \\
+    \texttt{.out} & hyperref & PDF 书签树 \\
+    \texttt{.bcf} & biblatex & 文献引用记录（第一次 xelatex 写入）\\
+    \texttt{.bbl} & biber & 文献列表排版结果，xelatex 直接读入 \\
+    \texttt{.blg} & biber & biber 运行日志（报错时先看它）\\
+    \texttt{.log} & xelatex & 编译日志（报错时的主要线索）\\
+    \texttt{.synctex.gz} & xelatex & 源码与 PDF 双向定位（编辑器用）\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+这些文件都可放心删除——下次编译会自动重建。唯一需要保留的是
+\texttt{main.tex}、\texttt{chapters/} 与 \texttt{refs.bib}。
+
+\section{三种编译方式}
+
+\subsection{手动命令（最透明）}
+
+适合理解原理与排查问题：
+\begin{verbatim}
+xelatex main.tex && biber main && xelatex main.tex && xelatex main.tex
+\end{verbatim}
+
+\subsection{latexmk（写作期推荐）}
+
+latexmk 自动判断需要重跑几遍。在项目根目录放一个
+\texttt{.latexmkrc}（Windows 上亦可），内容为：
+\begin{lstlisting}
+$pdf_mode     = 5;      # 用 xelatex 编译
+$bibtex_use   = 2;      # 需要时自动运行参考文献工具
+$biber        = 'biber %O %S';   # 指定 biber 后端
+\end{lstlisting}
+之后只需一条命令：
+\begin{verbatim}
+latexmk main.tex
+\end{verbatim}
+
+\subsection{编辑器集成}
+
+\begin{description}
+  \item[TeXstudio] 选项 $\rightarrow$ 构建 $\rightarrow$ 默认编译器
+        选 \texttt{XeLaTeX}；文献工具选 \texttt{biber}；
+  \item[VS Code + LaTeX Workshop] 在 \texttt{settings.json} 中把
+        \texttt{latex-workshop.latex.recipes} 第一条配成
+        \texttt{xelatex $\rightarrow$ biber $\rightarrow$ xelatex $\rightarrow$
+        xelatex}；
+  \item[Overleaf] 菜单 $\rightarrow$ 编译器选 \texttt{XeLaTeX}；
+        Overleaf 会自动调用 biber。
+\end{description}
+
+\section{常用环境速查}
+
+\subsection{数学公式环境}
+
+文档类已加载 amsmath，常用环境如下：
+
+\begin{table}[htbp]
+  \centering
+  \caption{常用数学环境}\label{tab:mathenv}
+  \begin{tabular}{lll}
+    \toprule
+    环境 & 用途 & 编号 \\
+    \midrule
+    \texttt{equation} / \texttt{equation*} & 单行公式 & 有/无 \\
+    \texttt{align} / \texttt{align*} & 多行按 \texttt{\&} 对齐 & 有/无 \\
+    \texttt{gather} / \texttt{gather*} & 多行居中 & 有/无 \\
+    \texttt{multline} & 超长公式换行（首行左、末行右）& 有 \\
+    \texttt{cases} & 分段函数 & 嵌套使用 \\
+    \texttt{split} & 多行共享一个编号 & 共享 \\
+    \texttt{pmatrix}/\texttt{bmatrix} & 圆/方括号矩阵 & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+例如分段函数与矩阵：
+
+\begin{lstlisting}
+\[
+  f(x)=\begin{cases}
+    x^2, & x\geqslant 0,\\
+    -x,  & x<0,
+  \end{cases}
+  \qquad
+  A=\begin{pmatrix} a & b \\ c & d \end{pmatrix}
+\]
+\end{lstlisting}
+
+渲染结果为
+\[
+  f(x)=\begin{cases}
+    x^2, & x\geqslant 0,\\
+    -x,  & x<0,
+  \end{cases}
+  \qquad
+  A=\begin{pmatrix} a & b \\ c & d \end{pmatrix}.
+\]
+
+\subsection{其他常用环境}
+
+\begin{description}
+  \item[\texttt{itemize}/\texttt{enumerate}/\texttt{description}]
+        无序/有序/描述列表，项目符号为主题色圆点；
+  \item[\texttt{lstlisting}] 代码环境，支持语法高亮；
+  \item[\texttt{verbatim}] 原样输出（不处理命令）；
+  \item[\texttt{quote}/\texttt{quotation}] 短/长引文；
+  \item[\texttt{abstract}] 摘要（文档类自带样式）；
+  \item[\texttt{introduction}] 章前引言框（双栏要点列表）。
+\end{description}
+
+\section{标签与交叉引用规范}
+
+\verb|\label| 与 \verb|\ref| 是文档内引用的基础。推荐的
+标签命名规范是"类型前缀 + 冒号 + 语义名"：
+
+\begin{table}[htbp]
+  \centering
+  \caption{标签前缀约定}\label{tab:labels}
+  \begin{tabular}{lll}
+    \toprule
+    前缀 & 对象 & 引用命令 \\
+    \midrule
+    \texttt{fig:} & 图 & \verb|\ref|、\verb|\figref| \\
+    \texttt{tab:} & 表 & \verb|\ref|、\verb|\tabref| \\
+    \texttt{eq:} & 公式 & \verb|\eqref|（自动加括号）\\
+    \texttt{sec:}/\texttt{ch:} & 节/章 & \verb|\ref|、\verb|\autoref| \\
+    \texttt{thm:}/\texttt{def:}/\texttt{lem:} & 定理/定义/引理 & \verb|\ref| \\
+    \texttt{alg:} & 算法 & \verb|\ref| \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\verb|\label| 必须放在产生编号的环境\emph{内部}（例如
+\verb|\begin{equation}...\label{eq:x}\end{equation}|），
+它记录的是"当前计数器的值"，放在外面会捕获错误编号。
+
+\section{章节层级与编号深度}
+
+ElegantBook 继承 \texttt{book} 类的层级结构：
+\begin{equation*}
+  \texttt{part} \succ \texttt{chapter} \succ \texttt{section}
+  \succ \texttt{subsection} \succ \texttt{subsubsection}
+  \succ \texttt{paragraph} \succ \texttt{subparagraph}.
+\end{equation*}
+默认编号深度 \texttt{secnumdepth=2}（即编号到
+\texttt{subsection}），目录深度 \texttt{tocdepth=2}。
+需要更深时可调整：
+\begin{lstlisting}
+\setcounter{secnumdepth}{3}   % subsubsection 也编号
+\setcounter{tocdepth}{3}      % 目录包含 subsubsection
+\end{lstlisting}
+
+\section{一个完整的示例章}
+
+综合以上内容，下面是一章完整的写法模板
+（保存为 \texttt{chapters/ch01\_demo.tex} 并被主文件
+\verb|\include|）：
+
+\begin{lstlisting}
+% chapters/ch01_demo.tex
+\chapter{示例章}
+
+\section{引入}
+本节对应 \ref{sec:model} 的模型。
+
+\begin{definition}[导数]\label{def:deriv}
+设 $f$ 在 $x_0$ 附近有定义，若极限
+\[ f'(x_0)=\lim_{h\to0}\frac{f(x_0+h)-f(x_0)}{h} \]
+存在，则称 $f$ 在 $x_0$ 处可导。
+\end{definition}
+
+\begin{theorem}[可导必连续]
+若 $f$ 在 $x_0$ 处可导，则 $f$ 在 $x_0$ 处连续。
+\end{theorem}
+\begin{proof}
+由 $f'(x_0)$ 存在直接推出
+$\lim_{x\to x_0}\big(f(x)-f(x_0)\big)=0$。
+\end{proof}
+
+\section{模型}\label{sec:model}
+线性近似（\eqref{eq:linear}）是微积分的基本思想：
+\begin{equation}
+  f(x)\approx f(x_0)+f'(x_0)(x-x_0). \label{eq:linear}
+\end{equation}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \draw[->] (-0.5,0) -- (3,0) node[right] {$x$};
+    \draw[->] (0,-0.5) -- (0,3) node[above] {$y$};
+    \draw[thick, structurecolor] plot[domain=0:2.5]
+      (\x, {0.5*\x*\x});
+    \draw[thick, second] (0.5,0.125) -- (2.5,2.125);
+  \end{tikzpicture}
+  \caption{割线逼近切线}\label{fig:approx}
+\end{figure}
+
+图像见图~\figref{fig:approx}，理论见 \cite{knuth1984texbook}。
+\end{lstlisting}
+
+按此模板组织，一本书的每个章节彼此独立，便于多人协作与单独编译调试。

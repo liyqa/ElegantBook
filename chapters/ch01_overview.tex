@@ -1,0 +1,322 @@
+% ============================================================================
+%  第一章  功能与模块划分
+% ============================================================================
+
+\chapter{功能与模块划分}
+
+\section{什么是 ElegantBook}
+
+ElegantBook 是一个基于 LaTeX 标准文档类 \texttt{book} 设计的优雅书籍模板，
+由 ElegantLaTeX 团队维护，项目托管于
+\href{https://github.com/ElegantLaTeX/ElegantBook}{GitHub}，
+以 LaTeX Project Public License（LPPL）发布，可以自由使用与二次分发。
+自 2013 年诞生以来，它经历了多次大版本重构，本文写作时对应的版本为
+v4.6（\texttt{elegantbook.cls} 的文件头中通过 \verb|\ProvidesClass| 声明版本号）。
+
+与 \texttt{book} 类相比，ElegantBook 的定位是\textbf{开箱即用的书籍排版方案}：
+用户只需要填写标题、作者等元信息，选择喜欢的配色与版式选项，
+即可得到包含封面、目录、章节、定理盒子、页眉页脚、参考文献在内的完整书籍，
+而无需手动组装十几行宏包调用。
+
+\begin{remark}
+本手册约定：\textbf{不显式使用 ctex}。也就是说，文档源码中既不写
+\verb|\usepackage{ctex}|，也不使用 \texttt{ctexbook}/\texttt{ctexart} 文档类；
+中文排版所需的全部机制（标点压缩、中文字体、段落缩进等）由
+ElegantBook 在 \texttt{lang=cn} 选项下于内部加载完成。
+\end{remark}
+
+\section{核心功能一览}
+
+ElegantBook 的核心功能可以归纳为以下几类：
+
+\begin{enumerate}
+  \item \textbf{多语言支持}：通过 \texttt{lang} 选项一键切换
+        中、英、意、法、荷、匈、德、蒙、葡、西、日等语言环境；
+  \item \textbf{配色主题}：内置绿、青、蓝、灰、黑五套主题色，
+        通过 \texttt{color} 选项选择，并可自行 \verb|\definecolor| 扩展；
+  \item \textbf{封面自动生成}：由 \verb|\title|、\verb|\author|、
+        \verb|\institute|、\verb|\cover| 等元信息自动排版出整页封面，
+        无需手写封面环境；
+  \item \textbf{定理盒子体系}：基于 \texttt{amsthm} 与 \texttt{tcolorbox}
+        实现带彩色边框的定理、定义、引理、推论、命题、例题、证明等环境；
+  \item \textbf{页眉页脚}：基于 \texttt{fancyhdr} 定制
+        章节名、书名、页码的组合页眉，并支持书脊式页眉装饰；
+  \item \textbf{图表排版}：内置 \texttt{graphicx}、\texttt{booktabs}、
+        \texttt{caption}、\texttt{multicol}、\texttt{multirow} 等，
+        图题与表题自动着色；
+  \item \textbf{代码高亮}：内置 \texttt{listings} 样式，
+        提供适合中文注释的等宽字体配置；
+  \item \textbf{参考文献}：内置 \texttt{biblatex}，
+        默认数值引用风格（\texttt{numeric-comp}），配合 \texttt{biber}
+        或 \texttt{bibtex} 后端；
+  \item \textbf{超链接与书签}：内置 \texttt{hyperref}，
+        目录、交叉引用、外部链接全部可点击跳转；
+  \item \textbf{三套版式}：\texttt{mode=fancy} 华丽版式（默认）、
+        \texttt{mode=simple} 简约版式；\texttt{device=pad} 可为平板
+        阅读优化版面。
+\end{enumerate}
+
+\section{模块划分}
+
+从实现角度看，\texttt{elegantbook.cls} 是一个约一千五百行的文档类，
+其内部可以划分为若干逻辑模块，如图~\ref{fig:modules} 所示。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[font=\small, >=stealth,
+      lay/.style={draw=structurecolor, thick, rounded corners,
+                  align=center, minimum width=11.5cm, fill=structurecolor!8},
+      mod/.style={draw=main, thick, rounded corners, align=center,
+                  minimum width=3.4cm, minimum height=1.1cm, fill=main!8}]
+    % 顶层：用户接口
+    \node[lay] (user) at (0,4.2) {用户接口：\texttt{\string\documentclass[\,\ldots\,]\{elegantbook\}}\\[2pt]
+      {\scriptsize main.tex \quad chapters/ \quad refs.bib \quad figures/}};
+    % 中间层：功能模块
+    \node[mod] (lang)  at (-4.2, 1.6) {语言与字体\\ {\scriptsize ctex, fontspec}};
+    \node[mod] (layo)  at (-1.4, 1.6) {版面样式\\ {\scriptsize geometry, fancyhdr, titlesec}};
+    \node[mod] (math)  at (1.4, 1.6)  {数学与定理\\ {\scriptsize amsmath, amsthm, tcolorbox}};
+    \node[mod] (graph) at (4.2, 1.6)  {图形与图表\\ {\scriptsize tikz, graphicx, booktabs}};
+    \node[mod] (code)  at (-2.8,-1.2) {代码与列表\\ {\scriptsize listings, enumitem}};
+    \node[mod] (bib)   at (0,  -1.2)  {参考文献\\ {\scriptsize biblatex}};
+    \node[mod] (link)  at (2.8, -1.2) {超链接\\ {\scriptsize hyperref}};
+    % 底层：文档类基座
+    \node[lay] (base) at (0,-3.4) {基础层：\texttt{book} 类 \quad·\quad
+      {\scriptsize xcolor, kvoptions, etoolbox, calc, setspace, csquotes 等}};
+    % 连线
+    \draw[->, thick, structurecolor] (user.south) -- (0, 2.6);
+    \draw[->, thick, main] (lang.south) -- (-2.8,-1.9);
+    \draw[->, thick, main] (layo.south) -- (-1.4,-1.9);
+    \draw[->, thick, main] (math.south) -- (0,-1.9);
+    \draw[->, thick, main] (graph.south) -- (2.8,-1.9);
+    \draw[->, thick, second] (code.south) -- (-1.4,-2.7);
+    \draw[->, thick, second] (bib.south) -- (0,-2.7);
+    \draw[->, thick, second] (link.south) -- (1.4,-2.7);
+  \end{tikzpicture}
+  \caption{ElegantBook 的逻辑模块划分}\label{fig:modules}
+\end{figure}
+
+各模块的职责简述如下：
+
+\begin{description}
+  \item[语言与字体模块] 负责中文（\texttt{lang=cn} 时加载 ctex）、西文
+        与日文（\texttt{luatexja}）排版；在 XeLaTeX 下通过
+        \texttt{fontspec} 配置衬线、无衬线与等宽字体；
+  \item[版面样式模块] 通过 \texttt{geometry} 设置页面边距，
+        \texttt{titlesec} 定制章/节标题样式，\texttt{fancyhdr}
+        绘制页眉页脚，\texttt{tocloft} 控制目录排版；
+  \item[数学与定理模块] 加载 \texttt{amsmath} 系列宏包，
+        用 \texttt{amsthm} 定义计数器，再用 \texttt{tcolorbox}
+        把每个定理环境包装成彩色圆角盒子（详见第四章）；
+  \item[图形与图表模块] 加载 \texttt{graphicx}、\texttt{tikz}、
+        \texttt{booktabs}、\texttt{multicol}、\texttt{multirow} 等，
+        并统一 \texttt{caption} 标签样式；
+  \item[代码与列表模块] 提供 \texttt{lstlisting} 代码环境，
+        \texttt{enumerate}/\texttt{enumitem} 定制化列表；
+  \item[参考文献模块] 按 \texttt{citestyle}/\texttt{bibstyle} 选项
+        配置 biblatex，支持 biber/bibtex 两种后端；
+  \item[超链接模块] 统一配置 hyperref，保证书签、目录与引用可跳转。
+\end{description}
+
+\section{一个典型项目的文件组成}
+
+一个基于 ElegantBook 的书籍项目通常由以下文件组成：
+
+\begin{table}[htbp]
+  \centering
+  \caption{ElegantBook 项目的典型文件结构}\label{tab:project}
+  \begin{tabular}{lll}
+    \toprule
+    文件 & 作用 & 是否必须 \\
+    \midrule
+    \texttt{main.tex}     & 主文件：文档类、封面元信息、\texttt{\string\include} 导入 & 必须 \\
+    \texttt{chapters/}    & 章节目录，一章一文件（\texttt{ch01\_xxx.tex} 等） & 必须 \\
+    \texttt{refs.bib}     & Bib\TeX 参考文献数据库 & 可选 \\
+    \texttt{figures/}     & 插图目录（PNG/PDF/TikZ 源文件） & 可选 \\
+    \texttt{elegantbook.cls} & 文档类文件 & 随发行版安装即可 \\
+    \texttt{main.aux/.toc/.bbl/.out} & 编译中间文件（自动生成） & 否 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+编译中间文件由引擎自动生成，通常在最终交付时删除，需要时用
+\texttt{latexmk -c} 或手动清理。
+
+\section{本手册的结构}
+
+本手册按照"先总览、再入门、后原理"的顺序组织：
+
+\begin{itemize}
+  \item 第一章（本章）：介绍功能与模块划分；
+  \item 第二章：从最小示例出发，给出完整的入门流程；
+  \item 第三章：版面与排版的数学原理与公式推导；
+  \item 第四章：定理环境的内部设计与算法实现；
+  \item 第五章：编译管线与文档类的内部自动化机制；
+  \item 第六章：进阶定制方法；
+  \item 附录 A：文档类选项速查表。
+\end{itemize}
+
+阅读完前两章即可上手使用；若希望深入理解模板的工作原理，甚至为其
+贡献代码，请重点阅读第三、四、五章。
+
+\section{历史与版本演进}
+
+ElegantBook 自 2013 年发布以来经历了多次大版本重构，
+理解其演进脉络有助于读懂网上的旧教程：
+
+\begin{table}[htbp]
+  \centering
+  \caption{ElegantBook 主要版本演进}\label{tab:history}
+  \begin{tabular}{llp{7.6cm}}
+    \toprule
+    版本 & 时间 & 主要变化 \\
+    \midrule
+    v1.x & 2013--2018 & 面向理工科笔记的简单书籍模板，
+          提供封面与基础定理环境 \\
+    v2   & 2018      & 引入主题色（绿/青/蓝）与
+          \texttt{fancy} 版式，封面可插图 \\
+    v3   & 2020      & 用 tcolorbox 重构全部定理环境，
+          支持跨页断行的彩色盒子 \\
+    v4   & 2021 至今 & 选项键值化（kvoptions）、多语言
+          （cn/en/fr/de/jp 等）、\texttt{simple} 简约模式、
+          \texttt{device=pad} 平板版式、用户自定义定理环境
+          \texttt{\textbackslash elegantnewtheorem} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+当前主线版本（本文对应 v4.6）在设计上遵循三条原则：
+\textbf{选项即配置}（一切外观差异都由文档类选项表达）、
+\textbf{用户零侵入}（封面、目录、页眉等自动化，
+用户只需填元信息与正文）、\textbf{可扩展}（颜色、定理环境、
+字体均可覆盖）。
+
+\section{特性的代码示例}
+
+下面把第一节的功能清单落到具体代码上，帮助读者建立直观印象。
+
+\subsection{封面元信息}
+
+\begin{lstlisting}
+\title{数学分析讲义}
+\subtitle{微积分与级数理论}
+\author{张三 \and 李四}
+\institute{某某大学数学学院}
+\date{2026 年 8 月}
+\version{1.0}
+\extrainfo{仅供课堂使用}
+\logo{figures/logo.pdf}     % 可选：封面左上角校徽
+\cover{figures/cover.pdf}   % 可选：整页封面背景图
+\end{lstlisting}
+
+\verb|\author| 支持 \verb|\and| 分隔多个作者；
+\verb|\cover| 若给出，将作为整页背景铺满封面。
+
+\subsection{主题色}
+
+\begin{lstlisting}
+\documentclass[lang=cn, color=cyan]{elegantbook}   % 青色调
+\documentclass[lang=cn, color=green]{elegantbook}  % 绿色调
+\end{lstlisting}
+
+也可以完全自定义（见第六章）。
+
+\subsection{定理盒子}
+
+\begin{lstlisting}
+\begin{theorem}[欧拉公式]
+对任意实数 $x$，有 $e^{ix}=\cos x+i\sin x$。
+\end{theorem}
+
+\begin{lemma}
+设 $f$ 在闭区间 $[a,b]$ 上连续，则 $f$ 一致连续。
+\end{lemma}
+\end{lstlisting}
+
+\subsection{参考文献}
+
+\begin{lstlisting}
+% 主文件导言区
+\addbibresource{refs.bib}
+% 正文中引用
+\cite{knuth1984texbook}
+% 文末输出
+\printbibliography[heading=bibintoc, title={参考文献}]
+\end{lstlisting}
+
+\section{模块内部宏包明细}
+
+第一节给出了宏观模块划分，下表列出每个模块实际加载的核心宏包
+及其职责，便于读者判断"模板内部已经替我做了什么"：
+
+\begin{table}[htbp]
+  \centering
+  \caption{模块与内部宏包明细}\label{tab:packages}
+  \begin{tabular}{llp{6.5cm}}
+    \toprule
+    模块 & 宏包 & 职责 \\
+    \midrule
+    语言 & ctex & 中文标点、缩进、字体配置（\texttt{lang=cn} 时）\\
+    \multirow{2}{*}{字体} & fontspec & XeLaTeX 下系统字体加载 \\
+                          & newtxtext/newtxmath & Times 风格西文与数学字体 \\
+    \multirow{2}{*}{版面} & geometry & 页边距（见第三章推导）\\
+                          & titlesec, fancyhdr, tocloft & 标题、页眉页脚、目录样式 \\
+    \multirow{2}{*}{数学} & amsmath 系列 & 公式环境、符号字体 \\
+                          & bm, esint & 粗斜体、积分符号 \\
+    \multirow{2}{*}{盒子} & tcolorbox & 定理盒子的绘制引擎 \\
+                          & amsthm & 定理计数器与 proof 环境 \\
+    图形图表 & tikz, graphicx, booktabs, multicol, multirow & 矢量图、插图、三线表 \\
+    代码列表 & listings, fancyvrb, enumerate, enumitem & 代码高亮与列表 \\
+    文献 & biblatex & 参考文献（后端 biber/bibtex）\\
+    工具 & hyperref, xcolor, kvoptions, etoolbox & 链接、颜色、选项解析 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{remark}
+表中大部分宏包读者无需自行加载；若需要\emph{覆盖}其配置，
+应在主文件导言区于 \verb|\begin{document}| 之前重新设置
+（例如用 \verb|\definecolor| 覆盖主题色）。
+\end{remark}
+
+\section{与其他排版方案的对比}
+
+选型时常见的问题："我为什么不用 ctexbook 或直接堆宏包？"
+下表给出粗粒度对比：
+
+\begin{table}[htbp]
+  \centering
+  \caption{常见中文书籍排版方案对比}\label{tab:compare}
+  \begin{tabular}{lcccc}
+    \toprule
+    方案 & 中文开箱 & 彩色定理盒子 & 自动封面 & 配置成本 \\
+    \midrule
+    \texttt{ctexbook} + 手写宏包 & 好 & 无，需自建 & 无，需自建 & 高 \\
+    \texttt{tufte-book} & 一般 & 无 & 无 & 中 \\
+    \texttt{memoir} & 一般 & 无 & 无 & 高 \\
+    \textbf{ElegantBook} & 好 & 内置 & 内置 & 低 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+ElegantBook 的取舍是：牺牲一部分"从零控制的自由度"，换取
+"两天出成品"的确定性。对需要深度定制的用户，模板同样开放了
+颜色、字体、定理环境与页眉页脚的覆盖接口（见第六、七章
+与附录~A）。
+
+\section{运行环境要求}
+
+\begin{itemize}
+  \item \textbf{引擎}：XeLaTeX（中文必需）；纯英文文档亦可用
+        pdfLaTeX；
+  \item \textbf{发行版}：TeX~Live（推荐，2021 版以后）或 MiKTeX；
+        安装 \texttt{elegantbook} 宏包：
+\begin{lstlisting}
+tlmgr install elegantbook
+\end{lstlisting}
+  \item \textbf{参考文献后端}：biber（默认）或 BibTeX；
+  \item \textbf{字体}：中文排版需要系统中存在中文字体
+        （Windows 自带宋体/黑体/楷体，macOS 自带苹方/宋体等）；
+  \item \textbf{编辑工具}：TeXstudio、VS Code + LaTeX~Workshop、
+        Overleaf（在线）均可；编辑器内配置"XeLaTeX 编译 +
+        biber 参考文献"即可（见第二章）。
+\end{itemize}

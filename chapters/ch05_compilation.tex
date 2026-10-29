@@ -1,0 +1,283 @@
+% ============================================================================
+%  第五章  编译管线：内部自动化
+% ============================================================================
+
+\chapter{编译管线：内部自动化}
+
+一份 ElegantBook 文档从源文件到 PDF 要经历多遍编译，
+其间文档类、引擎与外部程序通过一系列辅助文件交换信息。
+本章把这个"看不见的流水线"拆开，给出完整的信息流图与形式化算法。
+
+\section{多遍编译模型}
+
+LaTeX 采用\emph{增量式}编译模型：每次运行只更新一部分结果，
+多次运行逐步收敛。ElegantBook 文档涉及的辅助文件包括：
+
+\begin{description}
+  \item[\texttt{.aux}] 交叉引用表：每处 \verb|\label| 记录
+        （标签名, 计数器名, 当前编号, 页码）；
+  \item[\texttt{.toc}] 目录条目：每处 \verb|\chapter| 等写入
+        （层级, 标题, 页码）；
+  \item[\texttt{.bcf}] biblatex 的控制文件（第一次编译生成），
+        记录引用了哪些文献；
+  \item[\texttt{.bbl}] 文献列表排版结果，由 biber 根据
+        \texttt{.bcf} 生成；
+  \item[\texttt{.out}] PDF 书签（由 hyperref 写入）。
+\end{description}
+
+各遍之间的信息流如图~\figref{fig:pipeline} 所示。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[font=\small, >=stealth,
+      box/.style={draw=structurecolor, thick, rounded corners,
+                  fill=structurecolor!8, minimum width=2.6cm,
+                  minimum height=0.8cm, align=center}]
+    \node[box] (x1) at (0,3)   {xelatex\\第 1 遍};
+    \node[box] (bi) at (0,0)   {biber};
+    \node[box] (x2) at (0,-3)  {xelatex\\第 2 遍};
+    \node[box] (x3) at (0,-6)  {xelatex\\第 3 遍};
+    \node[right, align=left] at (3.1,3)  {写 .aux .toc .bcf .out};
+    \node[right, align=left] at (3.1,0)  {读 .bcf，写 .bbl};
+    \node[right, align=left] at (3.1,-3) {读 .aux .toc .bbl\\解析引用与目录};
+    \node[right, align=left] at (3.1,-6) {读 .aux，收敛页码};
+    \draw[->, thick] (x1.south) -- (bi.north);
+    \draw[->, thick] (bi.south) -- (x2.north);
+    \draw[->, thick] (x2.south) -- (x3.north);
+    \node[draw=second, thick, rounded corners, fill=second!8,
+          minimum width=3.2cm, align=center] (pdf) at (0,-8.4)
+          {\texttt{main.pdf}};
+    \draw[->, thick] (x3.south) -- (pdf.north);
+  \end{tikzpicture}
+  \caption{ElegantBook 文档的编译信息流}\label{fig:pipeline}
+\end{figure}
+
+整个流程可形式化为算法~\ref{alg:compile}。
+
+\begin{algorithm}[htbp]
+  \caption{完整编译管线}\label{alg:compile}
+  \begin{algorithmic}[1]
+    \Require 主文件 \texttt{main.tex}，参考文献库 \texttt{refs.bib}
+    \Ensure 输出 \texttt{main.pdf}
+    \State 运行 \texttt{xelatex main.tex}
+    \Comment 生成 .aux/.toc/.bcf/.out
+    \If{存在 \texttt{\string\cite} 且启用参考文献}
+      \State 运行 \texttt{biber main}
+      \Comment 读 .bcf，生成 .bbl
+    \EndIf
+    \Repeat
+      \State 运行 \texttt{xelatex main.tex}
+      \Comment 读入辅助文件，解析引用
+    \Until{页码与引用全部收敛（无 warning）}
+  \end{algorithmic}
+\end{algorithm}
+
+\section{交叉引用的解析}
+
+\verb|\label{key}| 与 \verb|\ref{key}| 是 LaTeX 最核心的自动化之一。
+其原理是\textbf{延迟求解}：
+
+\begin{enumerate}
+  \item 编译到 \verb|\label{key}| 时，把元组
+        $(\texttt{key},\ \mathrm{counter},\ \mathrm{value},\ p)$
+        写入 \texttt{.aux}，其中 $p$ 为当前页码；
+  \item 编译到 \verb|\ref{key}| 时，先把 \texttt{key} 记入待解析表，
+        输出占位符；
+  \item 下一遍编译开始时读入 \texttt{.aux}，建立映射
+        \begin{equation}
+          \mathcal{M}: \texttt{key} \longmapsto
+          \bigl(\mathrm{counter},\ \mathrm{value}\bigr),
+          \label{eq:auxmap}
+        \end{equation}
+        \verb|\ref{key}| 时查询 $\mathcal{M}(\texttt{key})$，
+        输出 \texttt{counter} 对应的编号。
+\end{enumerate}
+
+若一遍之内既有 \verb|\label| 又有 \verb|\ref|（例如引用后面的
+定理），第一遍的 \verb|\ref| 只能得到占位符（显示为
+"??"），第二遍才能得到正确编号——这就是需要多遍编译的根本原因。
+\verb|\pageref| 同理，只是输出页码 $p$。
+
+\section{超链接与书签}
+
+hyperref 宏包在每次排版时把每个章节标题、\verb|\label| 位置
+记录为\textbf{目标}（destination），并为它们分配唯一的锚点
+编号。\texttt{.out} 文件保存书签层级树，由
+\texttt{bookmarksopen}、\texttt{bookmarksnumbered} 等选项控制
+展开与编号显示。ElegantBook 对 hyperref 的统一配置
+（链接着色 \texttt{linkcolor=winered}、\texttt{linktoc=all} 等）
+保证目录项、交叉引用与外部链接全部可点击。
+
+\section{封面与标题页的自动生成}
+
+\verb|\maketitle| 是模板自动化的集中体现。它在内部按算法
+~\ref{alg:maketitle} 组装封面元素，其版面布局如图
+~\figref{fig:cover} 所示。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[font=\small,
+      cover/.style={draw=structurecolor, thick, rounded corners,
+                    fill=structurecolor!8}]
+    \node[cover, minimum width=6.5cm, minimum height=8.5cm, align=center] (c) at (0,0) {
+      \textbf{\large 书名 \texttt{\textbackslash title}}\\[2pt]
+      {\small 副标题 \texttt{\textbackslash subtitle}}\\[10pt]
+      \rule{3cm}{0.4pt}\\[6pt]
+      {\small 作者 \texttt{\textbackslash author}}\\[2pt]
+      {\small 单位 \texttt{\textbackslash institute}}\\[2pt]
+      {\small 日期 \texttt{\textbackslash date}}\\[10pt]
+      {\scriptsize 版本 \texttt{\textbackslash version}}\\[2pt]
+      {\scriptsize 附注 \texttt{\textbackslash extrainfo}}};
+    \node[left] at (-3.9,3.4) {\footnotesize 校徽 \texttt{\textbackslash logo}};
+    \draw[->, thick] (-2.6,3.4) -- (-1.4,2.6);
+  \end{tikzpicture}
+  \caption{封面元素布局}\label{fig:cover}
+\end{figure}
+
+\begin{algorithm}[htbp]
+  \caption{\texttt{\textbackslash maketitle} 的封面组装}\label{alg:maketitle}
+  \begin{algorithmic}[1]
+    \Require 元信息：\texttt{title}、\texttt{author}（必须），其余可选
+    \If{提供了 \texttt{cover} 图片}
+      \State 整页铺设背景图
+    \EndIf
+    \If{提供了 \texttt{logo}}
+      \State 在左上角插入校徽，并缩放至固定高度
+    \EndIf
+    \State 居中排版 标题 $\to$ 副标题 $\to$ 分割线 $\to$ 作者/单位/日期
+    \State 在底部排版 版本号 \texttt{version} 与附注 \texttt{extrainfo}
+    \State 用主题色绘制装饰条与页脚，写入 PDF 元数据（标题、作者）
+  \end{algorithmic}
+\end{algorithm}
+
+注意封面信息与 PDF 元数据是两套体系：前者由模板排版成可见页面，
+后者由 \verb|\hypersetup{pdftitle=...}| 写入文件属性，
+供 PDF 阅读器在标签页中显示。
+
+\section{.aux 文件的实际格式}
+
+以本手册为例，编译后 \texttt{main.aux} 中的若干真实条目如下
+（条目按出现顺序追加）：
+
+\begin{verbatim}
+\relax
+\providecommand\hyper@newdestlabel[2]{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {1}功能与模块划分}{3}{chapter.1}}
+\newlabel{fig:modules}{{1.1}{4}{功能与模块划分}{figure.1.1}{}}
+\newlabel{eq:paper}{{3.1}{10}{排版与版面：数学原理}{equation.3.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{...}}{...}{figure.1.1}}
+\end{verbatim}
+
+观察要点：
+
+\begin{itemize}
+  \item \verb|\newlabel{key}{{编号}{页码}{章标题}{锚点}{}}|
+        是交叉引用的记录格式，\texttt{\textbackslash ref} 取第 1 个
+        分量，\texttt{\textbackslash pageref} 取第 2 个分量；
+  \item \verb|\@writefile{toc}| 把目录条目委托给 \texttt{.toc}
+        文件，\texttt{\textbackslash numberline\{1\}} 控制编号宽度；
+  \item 第 4 个分量（锚点，如 \texttt{figure.1.1}）由 hyperref
+        写入，供 PDF 跳转使用。
+\end{itemize}
+
+\section{编译过程的状态机}
+
+整个编译过程可以建模为有限状态机：每次运行 xelatex 都从
+\emph{起始态}出发，读入上一遍留下的辅助文件，再写出新状态。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[font=\small, >=stealth,
+      st/.style={draw=structurecolor, thick, rounded corners,
+                 fill=structurecolor!8, minimum width=2.4cm,
+                 minimum height=0.9cm, align=center}]
+    \node[st] (s0) at (0,2.2)   {起始态};
+    \node[st] (s1) at (0,0)     {读入 aux/toc/bbl};
+    \node[st] (s2) at (0,-2.2)  {排版正文};
+    \node[st] (s3) at (0,-4.4)  {写出 aux/toc/out};
+    \node[st] (s4) at (2.6,-2.2){终结态};
+    \draw[->,thick] (s0) -- (s1);
+    \draw[->,thick] (s1) -- (s2);
+    \draw[->,thick] (s2) -- (s3);
+    \draw[->,thick] (s3) -- (s4);
+    \draw[->,thick, dashed, second] (s3) to[bend left=30] node[above]
+      {\scriptsize 有"未解析引用"警告时重跑} (s1);
+  \end{tikzpicture}
+  \caption{单次 xelatex 运行的状态机}\label{fig:fsm}
+\end{figure}
+
+"收敛判定"等价于：连续两遍之间 \texttt{.aux} 的内容不再变化。
+latexmk 正是通过比较这些文件的哈希来判断是否需要重跑。
+
+\section{hyperref 的锚点机制}
+
+PDF 内的"跳转"依赖锚点（destination）。hyperref 为每个
+\verb|\label|、每个章节标题生成形如
+\texttt{chapter.3}、\texttt{equation.3.1} 的锚点名，
+并在 PDF 中写入跳转记录。其命名规则可概括为
+\begin{equation}
+  \texttt{anchor}(\texttt{type}, c_{\mathrm{ch}}, c_{\mathrm{thm}})
+  = \texttt{type} \cdot c_{\mathrm{ch}} \cdot c_{\mathrm{thm}},
+\end{equation}
+其中 \texttt{type} 为对象类型（\texttt{chapter}、
+\texttt{equation}、\texttt{figure} 等）。模板统一配置
+\texttt{bookmarksnumbered}、\texttt{linktoc=all}，
+使目录中的编号、章节标题与页码都可点击。
+
+\section{biblatex 与 biber 的协作}
+
+参考文献的自动化分四步：
+
+\begin{enumerate}
+  \item 第一次 xelatex：biblatex 把正文中所有
+        \verb|\cite{key}| 记录到 \texttt{main.bcf}
+        （XML 格式，含去重、排序信息）；
+  \item biber：读取 \texttt{.bcf}，在 \texttt{refs.bib}
+        中查找条目，按 \texttt{sorting} 规则排序，
+        生成 \texttt{main.bbl}（LaTeX 可读的文献排版代码）；
+  \item 第二次 xelatex：\verb|\printbibliography| 直接读入
+        \texttt{.bbl} 输出文献列表，\verb|\cite| 处输出编号；
+  \item 第三次 xelatex：收敛文献列表中的页码引用。
+\end{enumerate}
+
+若跳过 biber（例如只跑 xelatex），\verb|\cite| 处会显示
+\textbf{问号}且文献列表为空——这是最常见的入门错误之一。
+本手册默认选项 \texttt{bibstyle=numeric}，
+引用样式 \texttt{citestyle=numeric-comp}（合并连续编号，
+如 [2-4]）。
+
+\section{常见错误分类与对策}
+
+\begin{table}[htbp]
+  \centering
+  \caption{编译错误速查}\label{tab:errors}
+  \begin{tabular}{lp{4.2cm}p{6cm}}
+    \toprule
+    错误信息（关键词） & 常见原因 & 对策 \\
+    \midrule
+    \texttt{Undefined control sequence} & 命令拼写错误或宏包未加载 &
+      检查命令名；确认所需宏包已安装 \\
+    \texttt{Missing \$ inserted} & 数学符号用在文本模式 &
+      用 \texttt{\$...\$} 或 \texttt{\textbackslash[...
+      \textbackslash]} 包裹 \\
+    \texttt{Extra \}, or forgotten \$} & 括号/环境不配对 &
+      用编辑器高亮检查括号配对 \\
+    \texttt{Runaway argument} & 参数未闭合 &
+      找到未结束的 \texttt{\{} \\
+    \texttt{File xxx not found} & 图片/宏包缺失 &
+      检查路径与 \texttt{tlmgr install} \\
+    \texttt{Capacity exceeded} & 宏展开死循环 &
+      检查 \texttt{\textbackslash verb} 是否出现在宏参数中 \\
+    \texttt{Reference `xx' undefined} & 交叉引用未收敛 &
+      多编译一遍或运行 biber \\
+    \texttt{Multiply defined} & 标签重名 &
+      改名或删除重复的 \texttt{\textbackslash label} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{remark}
+报错时先看 \texttt{main.log} 中第一个 \texttt{!} 之后的几行：
+它给出出错的文件名与行号。修复顺序建议为
+"先解决第一个错误，再重编译"——后续错误往往是连锁反应。
+\end{remark}
